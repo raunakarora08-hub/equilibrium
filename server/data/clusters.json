@@ -1,0 +1,80 @@
+{
+  "weeklyHurdles": [
+    {
+      "id": "wh-1",
+      "title": "Staging Pipeline & Automated CI/CD Failures",
+      "category": "Tooling & Infrastructure",
+      "frequency": 5,
+      "severity": "High",
+      "impactSummary": "Unstable deployment pipelines are causing recurring evening overtime and productivity loss on release days.",
+      "sampleQuote": "The staging server ran out of disk space right before the demo sync with Chloe."
+    },
+    {
+      "id": "wh-2",
+      "title": "Late-Stage Stakeholder Messaging Contradictions",
+      "category": "Direction & Alignment",
+      "frequency": 4,
+      "severity": "Moderate",
+      "impactSummary": "Conflicting directional feedback from multiple leaders right before release creates urgent rework.",
+      "sampleQuote": "Sarah and David gave contradictory feedback on the brand launch messaging at 6pm."
+    },
+    {
+      "id": "wh-3",
+      "title": "Open Office Acoustic Noise During Crunch Hours",
+      "category": "Workplace Environment",
+      "frequency": 3,
+      "severity": "Moderate",
+      "impactSummary": "High noise levels in the open floor plan make deep concentration difficult during afternoon sprint blocks.",
+      "sampleQuote": "The open office noise during afternoon sprint crunches is making it impossible to focus."
+    }
+  ],
+  "monthlySystemicChallenges": [
+    {
+      "id": "mc-1",
+      "title": "Sales Handoff & Unilateral Client Commitments",
+      "category": "Cross-Team Friction",
+      "persistenceWeeks": 5,
+      "burnoutRisk": "High",
+      "underlyingRootCause": "Sales (specifically Matthew) committing to custom exports without prior technical scoping.",
+      "impactSummary": "Operations team experiences acute friction and overtime when held accountable for unfeasible commitments."
+    },
+    {
+      "id": "mc-2",
+      "title": "Chronic Calendar Fragmentation & Absence of Deep Focus",
+      "category": "Meeting Overload",
+      "persistenceWeeks": 4,
+      "burnoutRisk": "High",
+      "underlyingRootCause": "Diffusion of 30-minute sync meetings across prime working hours with no shared quiet windows.",
+      "impactSummary": "Recurrent daily interruptions generate chronic low-grade frustration and erode productivity."
+    },
+    {
+      "id": "mc-3",
+      "title": "Hesitation to Flag Delivery Timeline Risks",
+      "category": "Culture & Team Health",
+      "persistenceWeeks": 3,
+      "burnoutRisk": "Severe",
+      "underlyingRootCause": "Perception that raising timeline risks in retrospectives is penalized as a lack of commitment.",
+      "impactSummary": "Voice withholding triggers burnout and increases turnover intentions among top talent."
+    }
+  ],
+  "leadershipRecommendations": [
+    {
+      "priority": 1,
+      "intervention": "Establish mandatory technical pre-scoping signoff between Sales and Operations before contract signing.",
+      "targetArea": "Cross-Team Alignment",
+      "expectedOutcome": "Eliminates downstream delivery friction and emergency overtime."
+    },
+    {
+      "priority": 2,
+      "intervention": "Protect 4-hour morning deep work blocks across Engineering and Product squads.",
+      "targetArea": "Meeting Governance",
+      "expectedOutcome": "Projected 30% reduction in cognitive strain and higher sprint velocity."
+    },
+    {
+      "priority": 3,
+      "intervention": "Introduce anonymous asynchronous risk check-ins prior to sprint retrospectives.",
+      "targetArea": "Culture & Retention",
+      "expectedOutcome": "Restores fearless voice behavior and catches estimation blindspots early."
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+[
+  {
+    "id": "act-1",
+    "targetClusterId": "wh-1",
+    "clusterTitle": "Staging Pipeline Instability & Deployment Lockouts",
+    "status": "In Progress",
+    "assignedTo": "DevOps & Infrastructure Committee",
+    "actionDescription": "Provisioned redundant runner nodes and automated credential rotation to eliminate deployment freezes.",
+    "updatedAt": "2026-10-23T14:00:00Z",
+    "publicNote": "HR & Leadership response: We heard the feedback regarding lost evening hours. An infrastructure patch has been funded and is scheduled for deployment this Thursday."
+  },
+  {
+    "id": "act-2",
+    "targetClusterId": "mc-1",
+    "clusterTitle": "Fragmented Calendar & Deep Focus Scarcity",
+    "status": "Action Deployed",
+    "assignedTo": "People Operations & Executive Team",
+    "actionDescription": "Instituted 'Focus Thursdays': Company-wide ban on internal recurring meetings every Thursday morning.",
+    "updatedAt": "2026-10-21T09:30:00Z",
+    "publicNote": "Based on longitudinal cognitive strain metrics, Focus Thursdays have been officially codified into the team working agreement."
+  },
+  {
+    "id": "act-3",
+    "targetClusterId": "mc-2",
+    "clusterTitle": "Retrospective Psychological Safety Deficit",
+    "status": "Under Review",
+    "assignedTo": "VP of People & Engineering Leads",
+    "actionDescription": "Introducing anonymous asynchronous retro check-ins so sprint estimation risks can be flagged without fear of retribution.",
+    "updatedAt": "2026-10-24T10:15:00Z",
+    "publicNote": "Leadership statement: No engineer should feel penalized for flagging realistic estimation risks. We are piloting an anonymous async retro protocol."
+  }
+]

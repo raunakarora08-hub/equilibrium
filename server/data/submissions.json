@@ -1,0 +1,375 @@
+[
+  {
+    "id": "sub-001",
+    "type": "daily_summary",
+    "timestamp": "2026-08-10T17:15:00Z",
+    "department": "Engineering",
+    "energyLevel": 4,
+    "achievements": "Closed 4 pull requests and deployed the auth caching layer with zero downtime.",
+    "blockers": "Minor delay waiting for AWS role permissions.",
+    "other": "Had a good quiet morning block.",
+    "neutralizedContent": "Completed pull requests and deployed authentication caching optimizations with zero downtime during an uninterrupted morning work block.",
+    "redactedItems": [
+      "Protected submitter username"
+    ],
+    "sentimentScore": 0.75,
+    "cognitiveStrain": 20,
+    "productivityScore": 88,
+    "affectiveValence": "Energized",
+    "category": "Deep Focus"
+  },
+  {
+    "id": "sub-002",
+    "type": "targeted_incident",
+    "timestamp": "2026-08-18T14:30:00Z",
+    "department": "Operations",
+    "severity": "high",
+    "category": "Cross-Team Friction",
+    "rawContent": "Matthew in Sales promised an enterprise client custom data exports by this Friday without checking our team bandwidth. We are scrambling to deliver.",
+    "neutralizedContent": "Matthew in Sales committed the operations team to deliver custom client exports on short notice without prior bandwidth verification, creating urgent scheduling pressure.",
+    "redactedItems": [
+      "Preserved colleague name Matthew; neutralized submitter venting"
+    ],
+    "sentimentScore": -0.7,
+    "cognitiveStrain": 82,
+    "productivityScore": 35,
+    "affectiveValence": "Frustrated",
+    "energyLevel": 1
+  },
+  {
+    "id": "sub-003",
+    "type": "daily_summary",
+    "timestamp": "2026-08-28T18:00:00Z",
+    "department": "Product & Design",
+    "energyLevel": 3,
+    "achievements": "Got executive approval on the new navigation wireframes.",
+    "blockers": "Figma design handoff was blocked because Jira acceptance criteria were not updated.",
+    "other": "",
+    "neutralizedContent": "Executive alignment achieved on navigation wireframes. Handoff to development experienced friction due to outdated Jira acceptance criteria.",
+    "redactedItems": [
+      "Standardized handoff feedback"
+    ],
+    "sentimentScore": 0.15,
+    "cognitiveStrain": 45,
+    "productivityScore": 68,
+    "affectiveValence": "Steady",
+    "category": "Process Bottleneck"
+  },
+  {
+    "id": "sub-004",
+    "type": "targeted_incident",
+    "timestamp": "2026-09-04T16:20:00Z",
+    "department": "Engineering",
+    "severity": "high",
+    "category": "Tooling & Infrastructure",
+    "rawContent": "The staging server ran out of disk space right before the demo sync with Chloe. Spent 3 hours manually clearing docker containers instead of coding.",
+    "neutralizedContent": "Staging environment disk space saturation immediately preceded a scheduled demo with Chloe, requiring three hours of manual container maintenance.",
+    "redactedItems": [
+      "Preserved colleague name Chloe"
+    ],
+    "sentimentScore": -0.65,
+    "cognitiveStrain": 75,
+    "productivityScore": 40,
+    "affectiveValence": "Frustrated",
+    "energyLevel": 2
+  },
+  {
+    "id": "sub-005",
+    "type": "daily_summary",
+    "timestamp": "2026-09-11T17:45:00Z",
+    "department": "Marketing",
+    "energyLevel": 4,
+    "achievements": "Published monthly product newsletter on time with strong open rates.",
+    "blockers": "Waiting 2 full days for legal copy review delayed final scheduling.",
+    "other": "Need an expedited review SLA for minor copy changes.",
+    "neutralizedContent": "Monthly newsletter deployed on schedule with positive engagement metrics. Multi-day turnaround for compliance review created schedule compression.",
+    "redactedItems": [
+      "Neutralized review delay tone"
+    ],
+    "sentimentScore": 0.6,
+    "cognitiveStrain": 30,
+    "productivityScore": 82,
+    "affectiveValence": "Energized",
+    "category": "Process Bottleneck"
+  },
+  {
+    "id": "sub-006",
+    "type": "daily_summary",
+    "timestamp": "2026-09-16T18:10:00Z",
+    "department": "Sales",
+    "energyLevel": 3,
+    "achievements": "Closed 3 mid-market contract renewals ahead of the quarterly target.",
+    "blockers": "CRM logged out twice and froze during the pipeline review call.",
+    "other": "",
+    "neutralizedContent": "Closed three key mid-market contract renewals. Experienced technical CRM instability during customer pipeline reviews.",
+    "redactedItems": [
+      "Sanitized CRM error details"
+    ],
+    "sentimentScore": 0.4,
+    "cognitiveStrain": 50,
+    "productivityScore": 75,
+    "affectiveValence": "Steady",
+    "category": "Tooling & Infrastructure"
+  },
+  {
+    "id": "sub-007",
+    "type": "targeted_incident",
+    "timestamp": "2026-09-23T17:30:00Z",
+    "department": "Product & Design",
+    "severity": "medium",
+    "category": "Meeting Overload",
+    "rawContent": "Had 6 hours of back-to-back status syncs today. There was literally zero uninterrupted time to finish design tokens for the upcoming mobile sprint.",
+    "neutralizedContent": "Consecutive recurring status syncs consumed the majority of the workday, leaving insufficient continuous time for sprint delivery assets.",
+    "redactedItems": [
+      "Standardized meeting complaint"
+    ],
+    "sentimentScore": -0.45,
+    "cognitiveStrain": 70,
+    "productivityScore": 35,
+    "affectiveValence": "Fatigued",
+    "energyLevel": 2
+  },
+  {
+    "id": "sub-008",
+    "type": "daily_summary",
+    "timestamp": "2026-09-30T17:00:00Z",
+    "department": "Customer Support",
+    "energyLevel": 3,
+    "achievements": "Cleared incoming customer ticket queue down to single digits.",
+    "blockers": "Repetitive manual exports required because tool integration was deprecated.",
+    "other": "Hoping the engineering patch lands next sprint.",
+    "neutralizedContent": "Customer support ticket backlog cleared to minimal levels. Manual data export overhead continues to consume operational capacity.",
+    "redactedItems": [
+      "Standardized tool feedback"
+    ],
+    "sentimentScore": 0.1,
+    "cognitiveStrain": 48,
+    "productivityScore": 65,
+    "affectiveValence": "Steady",
+    "category": "Tooling & Infrastructure"
+  },
+  {
+    "id": "sub-009",
+    "type": "daily_summary",
+    "timestamp": "2026-10-02T17:20:00Z",
+    "department": "Engineering",
+    "energyLevel": 5,
+    "achievements": "Optimized primary database query indexing, cutting API response times by 45%.",
+    "blockers": "None today; had an uninterrupted focus block.",
+    "other": "Great flow day.",
+    "neutralizedContent": "Database query optimization yielded a 45% reduction in API response latency during an uninterrupted focus session.",
+    "redactedItems": [
+      "Preserved achievement details"
+    ],
+    "sentimentScore": 0.9,
+    "cognitiveStrain": 15,
+    "productivityScore": 95,
+    "affectiveValence": "Energized",
+    "category": "Deep Focus"
+  },
+  {
+    "id": "sub-010",
+    "type": "targeted_incident",
+    "timestamp": "2026-10-05T15:10:00Z",
+    "department": "Marketing",
+    "severity": "high",
+    "category": "Direction & Alignment",
+    "rawContent": "Sarah and David gave contradictory feedback on the brand launch messaging at 6pm, forcing rework right before the campaign release.",
+    "neutralizedContent": "Conflicting late-stage messaging guidance between Sarah and David required urgent rework immediately prior to campaign deployment.",
+    "redactedItems": [
+      "Preserved colleague names Sarah and David"
+    ],
+    "sentimentScore": -0.75,
+    "cognitiveStrain": 85,
+    "productivityScore": 30,
+    "affectiveValence": "Anxious",
+    "energyLevel": 1
+  },
+  {
+    "id": "sub-011",
+    "type": "daily_summary",
+    "timestamp": "2026-10-08T16:50:00Z",
+    "department": "Operations",
+    "energyLevel": 3,
+    "achievements": "Finalized quarterly vendor contract renewals under budget.",
+    "blockers": "Wi-Fi kept dropping in conference room B during our supplier negotiation call.",
+    "other": "IT is looking into the router.",
+    "neutralizedContent": "Vendor renewal agreements finalized under budget. Network connectivity disruptions occurred in Conference Room B during key supplier calls.",
+    "redactedItems": [
+      "Standardized room details"
+    ],
+    "sentimentScore": 0.2,
+    "cognitiveStrain": 42,
+    "productivityScore": 70,
+    "affectiveValence": "Steady",
+    "category": "Workplace Environment"
+  },
+  {
+    "id": "sub-012",
+    "type": "targeted_incident",
+    "timestamp": "2026-10-12T11:40:00Z",
+    "department": "Engineering",
+    "severity": "high",
+    "category": "Culture & Team Health",
+    "rawContent": "Engineers are afraid to raise timeline estimation risks in sprint retrospectives because management treats pushback as a lack of commitment.",
+    "neutralizedContent": "Team members express reluctance to flag realistic delivery timeline risks during retrospectives due to perceived negative career repercussions.",
+    "redactedItems": [
+      "Standardized feedback tone"
+    ],
+    "sentimentScore": -0.8,
+    "cognitiveStrain": 88,
+    "productivityScore": 25,
+    "affectiveValence": "Anxious",
+    "energyLevel": 1
+  },
+  {
+    "id": "sub-013",
+    "type": "daily_summary",
+    "timestamp": "2026-10-15T18:00:00Z",
+    "department": "Product & Design",
+    "energyLevel": 4,
+    "achievements": "Conducted 3 usability interviews with strong validation for the clean layout.",
+    "blockers": "Figma prototype links failed to load for one participant due to permission sync issues.",
+    "other": "Customers liked the new color tones.",
+    "neutralizedContent": "Completed usability testing with positive customer validation on the layout. Encountered minor prototype permission sharing glitches.",
+    "redactedItems": [
+      "Standardized user feedback"
+    ],
+    "sentimentScore": 0.65,
+    "cognitiveStrain": 35,
+    "productivityScore": 84,
+    "affectiveValence": "Energized",
+    "category": "Tooling & Infrastructure"
+  },
+  {
+    "id": "sub-014",
+    "type": "daily_summary",
+    "timestamp": "2026-10-17T17:35:00Z",
+    "department": "Customer Support",
+    "energyLevel": 3,
+    "achievements": "Resolved an escalated enterprise customer billing ticket successfully.",
+    "blockers": "Documentation on the new checkout flow was incomplete, had to DM engineering.",
+    "other": "",
+    "neutralizedContent": "Successfully resolved complex customer billing escalation. Absence of updated documentation necessitated ad-hoc developer inquiries.",
+    "redactedItems": [
+      "Standardized documentation feedback"
+    ],
+    "sentimentScore": 0.15,
+    "cognitiveStrain": 55,
+    "productivityScore": 65,
+    "affectiveValence": "Steady",
+    "category": "Process Bottleneck"
+  },
+  {
+    "id": "sub-015",
+    "type": "targeted_incident",
+    "timestamp": "2026-10-19T14:15:00Z",
+    "department": "Operations",
+    "severity": "high",
+    "category": "Cross-Team Friction",
+    "rawContent": "Matthew in Sales bypassed our onboarding checklist again for a new client. We had to fix broken account records manually all morning.",
+    "neutralizedContent": "Matthew in Sales bypassed standard onboarding pre-qualification protocols for a new account, requiring manual data remediation by operations.",
+    "redactedItems": [
+      "Preserved colleague name Matthew; neutralized submitter tone"
+    ],
+    "sentimentScore": -0.72,
+    "cognitiveStrain": 78,
+    "productivityScore": 35,
+    "affectiveValence": "Frustrated",
+    "energyLevel": 2
+  },
+  {
+    "id": "sub-016",
+    "type": "daily_summary",
+    "timestamp": "2026-10-21T17:15:00Z",
+    "department": "Engineering",
+    "energyLevel": 4,
+    "achievements": "Deployed hotfix release cleanly; Alex provided thorough code review in under 30 minutes.",
+    "blockers": "Minor slow test suite execution.",
+    "other": "Alex was very helpful.",
+    "neutralizedContent": "Production hotfix deployed cleanly with rapid, comprehensive code review from Alex.",
+    "redactedItems": [
+      "Preserved colleague name Alex"
+    ],
+    "sentimentScore": 0.8,
+    "cognitiveStrain": 22,
+    "productivityScore": 90,
+    "affectiveValence": "Energized",
+    "category": "Deep Focus"
+  },
+  {
+    "id": "sub-017",
+    "type": "daily_summary",
+    "timestamp": "2026-10-22T17:50:00Z",
+    "department": "People & HR",
+    "energyLevel": 3,
+    "achievements": "Completed benefits enrollment and onboarding for 5 new hires.",
+    "blockers": "Background check vendor delayed verification results by 4 business days.",
+    "other": "New hires are settling in well.",
+    "neutralizedContent": "Successfully conducted new hire onboarding. External background check vendor turnaround times caused minor onboarding delays.",
+    "redactedItems": [
+      "Standardized vendor feedback"
+    ],
+    "sentimentScore": 0.35,
+    "cognitiveStrain": 40,
+    "productivityScore": 72,
+    "affectiveValence": "Steady",
+    "category": "Process Bottleneck"
+  },
+  {
+    "id": "sub-018",
+    "type": "targeted_incident",
+    "timestamp": "2026-10-23T15:20:00Z",
+    "department": "General",
+    "severity": "medium",
+    "category": "Workplace Environment",
+    "rawContent": "The open office noise during afternoon sprint crunches is making it impossible to focus. We really need phone booths or a quiet working policy.",
+    "neutralizedContent": "Acoustic noise levels in the open floor plan during peak afternoon periods are impairing concentration; employees request dedicated focus booths or quiet hours.",
+    "redactedItems": [
+      "Standardized workspace feedback"
+    ],
+    "sentimentScore": -0.5,
+    "cognitiveStrain": 62,
+    "productivityScore": 45,
+    "affectiveValence": "Fatigued",
+    "energyLevel": 2
+  },
+  {
+    "id": "sub-019",
+    "type": "daily_summary",
+    "timestamp": "2026-10-24T18:05:00Z",
+    "department": "Marketing",
+    "energyLevel": 3,
+    "achievements": "Completed Q4 competitor benchmark deck for leadership.",
+    "blockers": "Received feedback in three different Slack threads instead of one shared document.",
+    "other": "Will consolidate feedback tomorrow.",
+    "neutralizedContent": "Finalized competitor benchmarking presentation. Fragmented feedback across multiple Slack channels complicated review consolidation.",
+    "redactedItems": [
+      "Standardized communication feedback"
+    ],
+    "sentimentScore": 0.2,
+    "cognitiveStrain": 52,
+    "productivityScore": 68,
+    "affectiveValence": "Steady",
+    "category": "Direction & Alignment"
+  },
+  {
+    "id": "sub-020",
+    "type": "daily_summary",
+    "timestamp": "2026-10-25T16:40:00Z",
+    "department": "Engineering",
+    "energyLevel": 5,
+    "achievements": "Refactored payment gateway integration; had a 4-hour uninterrupted afternoon deep focus block.",
+    "blockers": "None today.",
+    "other": "Great progress before sprint review.",
+    "neutralizedContent": "Completed payment gateway refactoring during an uninterrupted four-hour focus block, with strong delivery velocity.",
+    "redactedItems": [
+      "Preserved progress notes"
+    ],
+    "sentimentScore": 0.92,
+    "cognitiveStrain": 18,
+    "productivityScore": 96,
+    "affectiveValence": "Energized",
+    "category": "Deep Focus"
+  }
+]
