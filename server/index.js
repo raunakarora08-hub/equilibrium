@@ -18,14 +18,13 @@ import {
   addAction,
   updateAction
 } from './dataStore.js';
-
-import { initializeDatabase } from './db.js';
+import { initializeDatabase, ensureDbInitialized } from './db.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Initialize PostgreSQL if DATABASE_URL or POSTGRES_URL is provided
-initializeDatabase().catch(err => console.error('DB init error:', err.message));
+// Eager initialization if connection string exists
+initializeDatabase().catch(err => console.error('DB eager init error:', err.message));
 
 app.use(cors());
 app.use(express.json());
@@ -35,6 +34,16 @@ app.use((req, res, next) => {
   // Strip any client identifying IP or tracking headers before processing
   delete req.headers['x-forwarded-for'];
   delete req.headers['user-agent'];
+  next();
+});
+
+// Auto-initialize PostgreSQL tables and seed data on first request
+app.use(async (req, res, next) => {
+  try {
+    await ensureDbInitialized();
+  } catch (err) {
+    console.error('Database middleware init error:', err.message);
+  }
   next();
 });
 
@@ -84,7 +93,7 @@ app.post('/api/submit', async (req, res) => {
     // Run Affective Events Theory analysis
     const metrics = await analyzeAffectiveMetrics(textToAnalyze, payload.energyLevel || 3);
 
-    const saved = addSubmission({
+    const saved = await addSubmission({
       ...payload,
       sentimentScore: metrics.sentimentScore,
       cognitiveStrain: metrics.cognitiveStrain,
@@ -125,12 +134,12 @@ app.post('/api/auth/login', (req, res) => {
 
 /**
  * Feature 3: Real-Time HR Analytics Dashboard Metrics
- * Supports ?timeframe=day|week|month
+ * Supports ?timeframe=day|week|1month|3month
  */
-app.get('/api/analytics', (req, res) => {
+app.get('/api/analytics', async (req, res) => {
   try {
     const timeframe = req.query.timeframe || 'day';
-    const metrics = getAnalyticsMetrics(timeframe);
+    const metrics = await getAnalyticsMetrics(timeframe);
     res.json(metrics);
   } catch (err) {
     console.error('Error getting analytics:', err);
@@ -141,9 +150,9 @@ app.get('/api/analytics', (req, res) => {
 /**
  * Sanitized Submissions Feed (Only returns PII-scrubbed, neutralized content)
  */
-app.get('/api/submissions', (req, res) => {
+app.get('/api/submissions', async (req, res) => {
   try {
-    const all = getAllSubmissions();
+    const all = await getAllSubmissions();
     // Safety guarantee: Ensure no raw text ever leaves the server
     const sanitized = all.map(s => ({
       id: s.id,
@@ -156,6 +165,7 @@ app.get('/api/submissions', (req, res) => {
       redactedItems: s.redactedItems,
       sentimentScore: s.sentimentScore,
       cognitiveStrain: s.cognitiveStrain,
+      productivityScore: s.productivityScore,
       affectiveValence: s.affectiveValence,
       category: s.category,
       severity: s.severity
@@ -169,9 +179,9 @@ app.get('/api/submissions', (req, res) => {
 /**
  * Feature 4: Automated Problem Highlighting (Weekly Hurdles & Monthly Bottlenecks)
  */
-app.get('/api/clusters', (req, res) => {
+app.get('/api/clusters', async (req, res) => {
   try {
-    const clusters = getClusters();
+    const clusters = await getClusters();
     res.json(clusters);
   } catch (err) {
     res.status(500).json({ error: 'Failed to retrieve clusters' });
@@ -180,13 +190,14 @@ app.get('/api/clusters', (req, res) => {
 
 app.post('/api/clusters/regenerate', async (req, res) => {
   try {
-    const submissions = getAllSubmissions();
+    const submissions = await getAllSubmissions();
     const newClusters = await generateSemanticClusters(submissions);
     if (newClusters) {
-      updateClusters(newClusters);
+      await updateClusters(newClusters);
       res.json({ success: true, clusters: newClusters });
     } else {
-      res.json({ success: false, clusters: getClusters(), message: 'Retained previous clusters' });
+      const current = await getClusters();
+      res.json({ success: false, clusters: current, message: 'Retained previous clusters' });
     }
   } catch (err) {
     console.error('Error regenerating clusters:', err);
@@ -197,27 +208,27 @@ app.post('/api/clusters/regenerate', async (req, res) => {
 /**
  * Action & Resolution Tracker ("Closing the Loop")
  */
-app.get('/api/actions', (req, res) => {
+app.get('/api/actions', async (req, res) => {
   try {
-    const actions = getAllActions();
+    const actions = await getAllActions();
     res.json(actions);
   } catch (err) {
     res.status(500).json({ error: 'Failed to retrieve actions' });
   }
 });
 
-app.post('/api/actions', (req, res) => {
+app.post('/api/actions', async (req, res) => {
   try {
-    const action = addAction(req.body);
+    const action = await addAction(req.body);
     res.json({ success: true, action });
   } catch (err) {
     res.status(500).json({ error: 'Failed to create action' });
   }
 });
 
-app.patch('/api/actions/:id', (req, res) => {
+app.patch('/api/actions/:id', async (req, res) => {
   try {
-    const updated = updateAction(req.params.id, req.body);
+    const updated = await updateAction(req.params.id, req.body);
     if (!updated) return res.status(404).json({ error: 'Action not found' });
     res.json({ success: true, action: updated });
   } catch (err) {
@@ -234,8 +245,8 @@ app.post('/api/hr-discuss', async (req, res) => {
     if (!message || !message.trim()) {
       return res.status(400).json({ error: 'Message is required' });
     }
-    const submissions = getAllSubmissions();
-    const clusters = getClusters();
+    const submissions = await getAllSubmissions();
+    const clusters = await getClusters();
     const result = await discussProblemsWithAI(message, submissions, clusters, chatHistory || []);
     res.json(result);
   } catch (err) {

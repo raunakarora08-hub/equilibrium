@@ -6,15 +6,21 @@ const { Pool } = pg;
 
 let pool = null;
 let isConnected = false;
+let initPromise = null;
 
-// Check if a PostgreSQL database URL is configured
-const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+// Support all standard Vercel Postgres / Neon environment variables
+const connectionString = 
+  process.env.POSTGRES_URL || 
+  process.env.DATABASE_URL || 
+  process.env.POSTGRES_URL_NON_POOLING;
 
 if (connectionString) {
   try {
     pool = new Pool({
       connectionString,
-      ssl: connectionString.includes('localhost') ? false : { rejectUnauthorized: false }
+      ssl: connectionString.includes('localhost') ? false : { rejectUnauthorized: false },
+      max: 10,
+      idleTimeoutMillis: 30000
     });
     console.log('🔌 PostgreSQL pool initialized');
   } catch (err) {
@@ -28,7 +34,7 @@ if (connectionString) {
  */
 export async function initializeDatabase() {
   if (!pool) {
-    console.log('ℹ️ No DATABASE_URL provided. Operating with local JSON file persistence.');
+    console.log('ℹ️ No POSTGRES_URL or DATABASE_URL provided. Operating with local JSON file persistence.');
     return false;
   }
 
@@ -139,6 +145,18 @@ export async function initializeDatabase() {
     isConnected = false;
     return false;
   }
+}
+
+/**
+ * Ensures DB is initialized once, caching the promise for serverless functions.
+ */
+export async function ensureDbInitialized() {
+  if (!pool) return false;
+  if (isConnected) return true;
+  if (!initPromise) {
+    initPromise = initializeDatabase();
+  }
+  return initPromise;
 }
 
 export function isPgConnected() {

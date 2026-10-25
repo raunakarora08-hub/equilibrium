@@ -38,12 +38,38 @@ function writeJsonFile(filePath, data) {
   }
 }
 
-// In-memory caching with disk persistence
+// In-memory cache fallback
 let submissions = readJsonFile(SUBMISSIONS_FILE, initialSubmissions);
 let actions = readJsonFile(ACTIONS_FILE, initialActions);
 let clusters = readJsonFile(CLUSTERS_FILE, defaultClusters);
 
-export function getAllSubmissions() {
+export async function getAllSubmissions() {
+  if (isPgConnected() && pool) {
+    try {
+      const res = await pool.query('SELECT * FROM submissions ORDER BY timestamp DESC');
+      if (res.rows && res.rows.length > 0) {
+        return res.rows.map(r => ({
+          id: r.id,
+          type: r.type,
+          timestamp: r.timestamp instanceof Date ? r.timestamp.toISOString() : r.timestamp,
+          department: r.department,
+          energyLevel: r.energy_level,
+          productivityScore: r.productivity_score,
+          achievements: r.achievements,
+          blockers: r.blockers,
+          other: r.other_notes,
+          neutralizedContent: r.neutralized_content,
+          sentimentScore: parseFloat(r.sentiment_score || 0),
+          cognitiveStrain: r.cognitive_strain,
+          affectiveValence: r.affective_valence,
+          category: r.category,
+          severity: r.severity
+        }));
+      }
+    } catch (err) {
+      console.error('Error fetching submissions from PostgreSQL, falling back to cache:', err.message);
+    }
+  }
   return submissions;
 }
 
@@ -53,7 +79,7 @@ export function getAllSubmissions() {
  * - No user-agent, IP, or user IDs are accepted or stored.
  * - Random timing jitter (±10 to 25 mins) is added to the timestamp to thwart correlation attacks.
  */
-export function addSubmission(submission) {
+export async function addSubmission(submission) {
   // Apply timestamp jitter
   const now = new Date();
   const jitterMinutes = Math.floor(Math.random() * 30) - 15; // -15 to +15 mins
@@ -82,38 +108,61 @@ export function addSubmission(submission) {
     productivityScore: productivityScore,
     affectiveValence: submission.affectiveValence || 'Neutral',
     category: submission.category || 'General',
-    severity: submission.severity || 'low'
+    severity: submission.severity || 'normal'
   };
 
   submissions.unshift(cleanEntry);
   writeJsonFile(SUBMISSIONS_FILE, submissions);
 
-  // Asynchronously persist to PostgreSQL if connected
+  // Persist directly to PostgreSQL
   if (isPgConnected() && pool) {
-    pool.query(`
-      INSERT INTO submissions (
-        id, type, timestamp, department, energy_level, productivity_score,
-        achievements, blockers, other_notes, neutralized_content,
-        sentiment_score, cognitive_strain, affective_valence, category, severity
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-      ON CONFLICT (id) DO NOTHING;
-    `, [
-      cleanEntry.id, cleanEntry.type, cleanEntry.timestamp, cleanEntry.department,
-      cleanEntry.energyLevel, cleanEntry.productivityScore, cleanEntry.achievements,
-      cleanEntry.blockers, cleanEntry.other, cleanEntry.neutralizedContent,
-      cleanEntry.sentimentScore, cleanEntry.cognitiveStrain, cleanEntry.affectiveValence,
-      cleanEntry.category, cleanEntry.severity
-    ]).catch(err => console.error('PG insert submission error:', err.message));
+    try {
+      await pool.query(`
+        INSERT INTO submissions (
+          id, type, timestamp, department, energy_level, productivity_score,
+          achievements, blockers, other_notes, neutralized_content,
+          sentiment_score, cognitive_strain, affective_valence, category, severity
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        ON CONFLICT (id) DO NOTHING;
+      `, [
+        cleanEntry.id, cleanEntry.type, cleanEntry.timestamp, cleanEntry.department,
+        cleanEntry.energyLevel, cleanEntry.productivityScore, cleanEntry.achievements,
+        cleanEntry.blockers, cleanEntry.other, cleanEntry.neutralizedContent,
+        cleanEntry.sentimentScore, cleanEntry.cognitiveStrain, cleanEntry.affectiveValence,
+        cleanEntry.category, cleanEntry.severity
+      ]);
+    } catch (err) {
+      console.error('PG insert submission error:', err.message);
+    }
   }
 
   return cleanEntry;
 }
 
-export function getAllActions() {
+export async function getAllActions() {
+  if (isPgConnected() && pool) {
+    try {
+      const res = await pool.query('SELECT * FROM actions ORDER BY created_at DESC');
+      if (res.rows && res.rows.length > 0) {
+        return res.rows.map(r => ({
+          id: r.id,
+          clusterTitle: r.cluster_title,
+          actionDescription: r.action_description,
+          assignedTo: r.assigned_to,
+          status: r.status,
+          publicNote: r.public_note,
+          createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at,
+          updatedAt: r.updated_at instanceof Date ? r.updated_at.toISOString() : r.updated_at
+        }));
+      }
+    } catch (err) {
+      console.error('Error fetching actions from PostgreSQL:', err.message);
+    }
+  }
   return actions;
 }
 
-export function updateAction(id, updateData) {
+export async function updateAction(id, updateData) {
   const index = actions.findIndex(a => a.id === id);
   if (index !== -1) {
     actions[index] = {
@@ -122,22 +171,24 @@ export function updateAction(id, updateData) {
       updatedAt: new Date().toISOString()
     };
     writeJsonFile(ACTIONS_FILE, actions);
+  }
 
-    // Persist to PostgreSQL if connected
-    if (isPgConnected() && pool) {
-      pool.query(`
+  if (isPgConnected() && pool) {
+    try {
+      await pool.query(`
         UPDATE actions
         SET status = $1, updated_at = NOW()
         WHERE id = $2;
-      `, [actions[index].status, id]).catch(err => console.error('PG update action error:', err.message));
+      `, [updateData.status, id]);
+    } catch (err) {
+      console.error('PG update action error:', err.message);
     }
-
-    return actions[index];
   }
-  return null;
+
+  return index !== -1 ? actions[index] : { id, ...updateData };
 }
 
-export function addAction(actionData) {
+export async function addAction(actionData) {
   const newAction = {
     id: `act-${Date.now()}`,
     targetClusterId: actionData.targetClusterId || 'custom',
@@ -151,29 +202,54 @@ export function addAction(actionData) {
   actions.unshift(newAction);
   writeJsonFile(ACTIONS_FILE, actions);
 
-  // Persist to PostgreSQL if connected
   if (isPgConnected() && pool) {
-    pool.query(`
-      INSERT INTO actions (
-        id, cluster_title, action_description, assigned_to, status, public_note, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
-      ON CONFLICT (id) DO NOTHING;
-    `, [
-      newAction.id, newAction.clusterTitle, newAction.actionDescription,
-      newAction.assignedTo, newAction.status, newAction.publicNote
-    ]).catch(err => console.error('PG insert action error:', err.message));
+    try {
+      await pool.query(`
+        INSERT INTO actions (
+          id, cluster_title, action_description, assigned_to, status, public_note, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+        ON CONFLICT (id) DO NOTHING;
+      `, [
+        newAction.id, newAction.clusterTitle, newAction.actionDescription,
+        newAction.assignedTo, newAction.status, newAction.publicNote
+      ]);
+    } catch (err) {
+      console.error('PG insert action error:', err.message);
+    }
   }
 
   return newAction;
 }
 
-export function getClusters() {
+export async function getClusters() {
+  if (isPgConnected() && pool) {
+    try {
+      const res = await pool.query('SELECT data FROM clusters WHERE id = $1', ['active']);
+      if (res.rows && res.rows[0]) {
+        return res.rows[0].data;
+      }
+    } catch (err) {
+      console.error('Error fetching clusters from PG:', err.message);
+    }
+  }
   return clusters;
 }
 
-export function updateClusters(newClusters) {
+export async function updateClusters(newClusters) {
   clusters = newClusters;
   writeJsonFile(CLUSTERS_FILE, clusters);
+
+  if (isPgConnected() && pool) {
+    try {
+      await pool.query(`
+        INSERT INTO clusters (id, data, updated_at)
+        VALUES ('active', $1, NOW())
+        ON CONFLICT (id) DO UPDATE SET data = $1, updated_at = NOW();
+      `, [JSON.stringify(newClusters)]);
+    } catch (err) {
+      console.error('PG update clusters error:', err.message);
+    }
+  }
   return clusters;
 }
 
@@ -194,8 +270,10 @@ function getWeekLabel(dateStr) {
 /**
  * Computes live aggregate metrics for the HR Dashboard with Day / Week / 1 Month / 3 Month grouping.
  */
-export function getAnalyticsMetrics(timeframe = 'day') {
-  const totalSubmissions = submissions.length;
+export async function getAnalyticsMetrics(timeframe = 'day') {
+  const subList = await getAllSubmissions();
+  const totalSubmissions = subList.length;
+
   if (totalSubmissions === 0) {
     return {
       rollingHappiness: 75,
@@ -211,16 +289,16 @@ export function getAnalyticsMetrics(timeframe = 'day') {
   }
 
   // Calculate Average Energy & Happiness
-  const totalEnergy = submissions.reduce((sum, s) => sum + (s.energyLevel || 3), 0);
+  const totalEnergy = subList.reduce((sum, s) => sum + (s.energyLevel || 3), 0);
   const avgEnergy = totalEnergy / totalSubmissions;
   const rollingHappiness = Math.round((avgEnergy / 5) * 100);
 
   // Calculate Cognitive Strain
-  const totalStrain = submissions.reduce((sum, s) => sum + (s.cognitiveStrain || 40), 0);
+  const totalStrain = subList.reduce((sum, s) => sum + (s.cognitiveStrain || 40), 0);
   const avgCognitiveStrain = Math.round(totalStrain / totalSubmissions);
 
   // Calculate Productivity
-  const totalProd = submissions.reduce((sum, s) => {
+  const totalProd = subList.reduce((sum, s) => {
     const prod = s.productivityScore || Math.max(25, Math.min(95, Math.round((s.energyLevel || 3) * 16 - (s.cognitiveStrain || 40) * 0.2 + 20)));
     return sum + prod;
   }, 0);
@@ -233,7 +311,7 @@ export function getAnalyticsMetrics(timeframe = 'day') {
 
   // Longitudinal Trajectory grouped by Day, Week, 1 Month, or 3 Month
   const trajectoryMap = {};
-  submissions.forEach(s => {
+  subList.forEach(s => {
     const rawDate = s.timestamp || '2026-10-24T12:00:00Z';
     const d = new Date(rawDate);
     let bucketKey = '';
@@ -243,7 +321,6 @@ export function getAnalyticsMetrics(timeframe = 'day') {
       bucketKey = rawDate.slice(0, 7); // YYYY-MM
       displayLabel = d.toLocaleString('en-US', { month: 'short', year: 'numeric' });
     } else if (timeframe === '1month') {
-      // 1 Month view: group by 7-day intervals of the latest month (Oct)
       const dayOfMonth = d.getDate();
       const weekIndex = Math.min(4, Math.ceil(dayOfMonth / 7));
       bucketKey = `${rawDate.slice(0, 7)}-W${weekIndex}`;
@@ -253,7 +330,6 @@ export function getAnalyticsMetrics(timeframe = 'day') {
       bucketKey = `${d.getFullYear()}-${weekLabel}`;
       displayLabel = weekLabel;
     } else {
-      // default: day
       bucketKey = rawDate.split('T')[0];
       displayLabel = bucketKey.slice(5); // MM-DD
     }
@@ -282,42 +358,65 @@ export function getAnalyticsMetrics(timeframe = 'day') {
       return {
         date: item.key,
         label: item.label,
-        moraleScore: Math.round((item.totalEnergy / item.count) * 20), // 0 to 100
+        moraleScore: Math.round((item.totalEnergy / item.count) * 20),
         cognitiveStrain: Math.round(item.totalStrain / item.count),
-        productivityScore: Math.round(item.totalProd / item.count),
-        submissionsCount: item.count
+        productivityScore: Math.round(item.totalProd / item.count)
       };
     });
 
-  // Department Climate
+  // Department Aggregates
   const deptMap = {};
-  submissions.forEach(s => {
-    const dept = s.department || 'General';
-    if (!deptMap[dept]) deptMap[dept] = { dept, totalEnergy: 0, totalStrain: 0, totalProd: 0, count: 0 };
+  subList.forEach(s => {
+    const d = s.department || 'General';
+    if (!deptMap[d]) {
+      deptMap[d] = {
+        name: d,
+        totalEnergy: 0,
+        totalStrain: 0,
+        totalProd: 0,
+        count: 0
+      };
+    }
     const prod = s.productivityScore || Math.max(25, Math.min(95, Math.round((s.energyLevel || 3) * 16 - (s.cognitiveStrain || 40) * 0.2 + 20)));
-    deptMap[dept].totalEnergy += (s.energyLevel || 3);
-    deptMap[dept].totalStrain += (s.cognitiveStrain || 40);
-    deptMap[dept].totalProd += prod;
-    deptMap[dept].count++;
+    deptMap[d].totalEnergy += (s.energyLevel || 3);
+    deptMap[d].totalStrain += (s.cognitiveStrain || 40);
+    deptMap[d].totalProd += prod;
+    deptMap[d].count++;
   });
 
-  const departmentClimate = Object.values(deptMap).map(d => ({
-    department: d.dept,
-    happinessIndex: Math.round((d.totalEnergy / d.count) * 20),
-    cognitiveStrain: Math.round(d.totalStrain / d.count),
-    productivityScore: Math.round(d.totalProd / d.count),
-    sampleSize: d.count
-  }));
+  const departmentClimate = Object.keys(deptMap).map(key => {
+    const item = deptMap[key];
+    const avgE = item.totalEnergy / item.count;
+    const avgS = Math.round(item.totalStrain / item.count);
+    const avgP = Math.round(item.totalProd / item.count);
+    return {
+      department: item.name,
+      moraleIndex: Math.round((avgE / 5) * 100),
+      cognitiveStrain: avgS,
+      productivityScore: avgP,
+      sentiment: avgE >= 3.8 ? 'Positive' : avgE <= 2.2 ? 'Strained' : 'Neutral',
+      activeFrictions: avgS >= 50 ? 2 : 1
+    };
+  });
+
+  // Energy Level Distribution (1-5)
+  const energyDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  subList.forEach(s => {
+    const level = s.energyLevel || 3;
+    if (energyDistribution[level] !== undefined) {
+      energyDistribution[level]++;
+    }
+  });
 
   return {
-    timeframe,
     rollingHappiness,
     rollingProductivity,
-    engagementRate: Math.min(96, Math.max(72, 70 + totalSubmissions * 2)),
+    engagementRate: Math.min(98, 70 + totalSubmissions),
     avgCognitiveStrain,
     burnoutRiskLevel,
     participationCount: totalSubmissions,
     dailyMoraleTrajectories,
-    departmentClimate
+    departmentClimate,
+    energyDistribution
   };
 }
