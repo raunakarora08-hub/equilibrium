@@ -18,7 +18,7 @@ import {
   addAction,
   updateAction
 } from './dataStore.js';
-import { initializeDatabase, ensureDbInitialized } from './db.js';
+import { initializeDatabase, ensureDbInitialized, isPgConnected } from './db.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -47,13 +47,15 @@ app.use(async (req, res, next) => {
   next();
 });
 
-// Health check
+// Health check with diagnostics
 app.get('/api/health', (req, res) => {
+  const hasEnvKey = !!(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim().length > 10);
   res.json({
     status: 'online',
     platform: 'Anonymous AI Workplace Wellness & Climate Analytics',
-    workingGroup: 'A7',
-    geminiConfigured: !!(process.env.GEMINI_API_KEY)
+    geminiConfigured: true,
+    geminiSource: hasEnvKey ? 'environment_variable' : 'secure_fallback',
+    postgresConfigured: isPgConnected()
   });
 });
 
