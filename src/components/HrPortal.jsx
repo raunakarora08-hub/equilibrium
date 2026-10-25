@@ -22,6 +22,176 @@ import {
 } from 'lucide-react';
 import AllSubmissionsView from './AllSubmissionsView';
 
+// Helper to format inline markdown like **bold**, *italic*, and `code`
+function formatInlineText(str) {
+  if (!str) return null;
+  const tokens = [];
+  const regex = /(\*\*.*?\*\*|\*.*?\*|`.*?`)/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(str)) !== null) {
+    if (match.index > lastIndex) {
+      tokens.push(str.substring(lastIndex, match.index));
+    }
+    const token = match[0];
+    if (token.startsWith('**') && token.endsWith('**')) {
+      tokens.push(
+        <strong key={match.index} style={{ fontWeight: 700, color: 'inherit' }}>
+          {token.slice(2, -2)}
+        </strong>
+      );
+    } else if (token.startsWith('*') && token.endsWith('*')) {
+      tokens.push(<em key={match.index}>{token.slice(1, -1)}</em>);
+    } else if (token.startsWith('`') && token.endsWith('`')) {
+      tokens.push(
+        <code
+          key={match.index}
+          style={{
+            backgroundColor: 'rgba(0,0,0,0.06)',
+            padding: '2px 5px',
+            borderRadius: 4,
+            fontSize: '0.85em'
+          }}
+        >
+          {token.slice(1, -1)}
+        </code>
+      );
+    }
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < str.length) {
+    tokens.push(str.substring(lastIndex));
+  }
+
+  return tokens.length > 0 ? tokens : str;
+}
+
+// Full Markdown renderer for AI chat messages supporting bold, lists, and headers
+function FormattedMessage({ text, isUser }) {
+  if (!text) return null;
+  if (isUser) {
+    return <div style={{ whiteSpace: 'pre-wrap' }}>{text}</div>;
+  }
+
+  const lines = text.split('\n');
+  const blocks = [];
+  let currentList = [];
+  let isNumbered = false;
+
+  const flushList = () => {
+    if (currentList.length > 0) {
+      const ListTag = isNumbered ? 'ol' : 'ul';
+      blocks.push(
+        <ListTag
+          key={`list-${blocks.length}`}
+          style={{
+            margin: '6px 0 10px',
+            paddingLeft: 22,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 5
+          }}
+        >
+          {currentList.map((item, i) => (
+            <li key={i} style={{ lineHeight: 1.55 }}>
+              {formatInlineText(item)}
+            </li>
+          ))}
+        </ListTag>
+      );
+      currentList = [];
+      isNumbered = false;
+    }
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i];
+    const trimmed = rawLine.trim();
+
+    if (!trimmed) {
+      flushList();
+      continue;
+    }
+
+    // Check for bullet list: '* ', '- ', '• '
+    const bulletMatch = trimmed.match(/^[\*\-•]\s+(.*)$/);
+    if (bulletMatch) {
+      if (isNumbered) flushList();
+      isNumbered = false;
+      currentList.push(bulletMatch[1]);
+      continue;
+    }
+
+    // Check for numbered list: '1. ', '2. ', etc.
+    const numberedMatch = trimmed.match(/^\d+\.\s+(.*)$/);
+    if (numberedMatch) {
+      if (!isNumbered && currentList.length > 0) flushList();
+      isNumbered = true;
+      currentList.push(numberedMatch[1]);
+      continue;
+    }
+
+    // Check for markdown headers like ### or ##
+    const headingMatch = trimmed.match(/^#{1,4}\s+(.*)$/);
+    if (headingMatch) {
+      flushList();
+      blocks.push(
+        <div
+          key={`h-${i}`}
+          style={{
+            fontWeight: 800,
+            fontSize: '0.92rem',
+            color: 'var(--brand-forest)',
+            margin: '12px 0 6px 0',
+            letterSpacing: '-0.01em'
+          }}
+        >
+          {formatInlineText(headingMatch[1])}
+        </div>
+      );
+      continue;
+    }
+
+    // Check for standalone bold heading: **Strategic Advice & Resolution Ideas:**
+    const boldHeaderMatch = trimmed.match(/^\*\*([^\*]+)\*\*$/);
+    if (boldHeaderMatch) {
+      flushList();
+      blocks.push(
+        <div
+          key={`bh-${i}`}
+          style={{
+            fontWeight: 700,
+            fontSize: '0.9rem',
+            color: 'var(--brand-forest)',
+            margin: '12px 0 6px 0'
+          }}
+        >
+          {boldHeaderMatch[1]}
+        </div>
+      );
+      continue;
+    }
+
+    // Regular paragraph
+    flushList();
+    blocks.push(
+      <p key={`p-${i}`} style={{ margin: '0 0 8px 0', lineHeight: 1.55 }}>
+        {formatInlineText(trimmed)}
+      </p>
+    );
+  }
+
+  flushList();
+
+  return (
+    <div style={{ fontSize: '0.84rem' }}>
+      {blocks}
+    </div>
+  );
+}
+
 export default function HrPortal({ hrUser, onLoginSuccess }) {
   // Login form state
   const [loginId, setLoginId] = useState('Raunak');
@@ -720,14 +890,12 @@ export default function HrPortal({ hrUser, onLoginSuccess }) {
                 style={{
                   backgroundColor: msg.role === 'user' ? 'var(--brand-forest)' : 'var(--bg-subtle)',
                   color: msg.role === 'user' ? '#FFFFFF' : 'var(--text-primary)',
-                  padding: '10px 14px',
+                  padding: '12px 16px',
                   borderRadius: 'var(--radius-md)',
-                  fontSize: '0.84rem',
-                  lineHeight: 1.5,
-                  whiteSpace: 'pre-wrap'
+                  lineHeight: 1.55
                 }}
               >
-                {msg.text}
+                <FormattedMessage text={msg.text} isUser={msg.role === 'user'} />
               </div>
 
               {/* ACTION CREATION CARD: AI generates actionable proposal directly into HR Action Board */}
