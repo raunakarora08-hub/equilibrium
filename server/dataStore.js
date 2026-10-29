@@ -1,16 +1,25 @@
 // server/dataStore.js
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { fileURLToPath } from 'url';
 import { initialSubmissions, initialActions, defaultClusters } from './seedData.js';
 import { pool, isPgConnected } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const DATA_DIR = path.join(__dirname, 'data');
 
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+// Safe DATA_DIR: Use /tmp on Vercel to respect read-only serverless filesystem
+const DATA_DIR = process.env.VERCEL 
+  ? path.join(os.tmpdir(), 'equilibrium-data') 
+  : path.join(__dirname, 'data');
+
+try {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+} catch (e) {
+  // Graceful fallback if filesystem is strictly read-only
 }
 
 const SUBMISSIONS_FILE = path.join(DATA_DIR, 'submissions.json');
@@ -26,7 +35,11 @@ function readJsonFile(filePath, defaultData) {
   } catch (err) {
     console.error(`Error reading ${filePath}:`, err.message);
   }
-  fs.writeFileSync(filePath, JSON.stringify(defaultData, null, 2), 'utf-8');
+  try {
+    fs.writeFileSync(filePath, JSON.stringify(defaultData, null, 2), 'utf-8');
+  } catch (err) {
+    // Read-only filesystem safe fallback
+  }
   return defaultData;
 }
 
@@ -34,7 +47,7 @@ function writeJsonFile(filePath, data) {
   try {
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
   } catch (err) {
-    console.error(`Error writing ${filePath}:`, err.message);
+    // Read-only filesystem safe fallback
   }
 }
 

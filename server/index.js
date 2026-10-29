@@ -48,7 +48,7 @@ app.use(async (req, res, next) => {
 });
 
 // Health check with diagnostics
-app.get('/api/health', (req, res) => {
+app.get(['/api/health', '/health'], (req, res) => {
   const hasEnvKey = !!(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim().length > 10);
   res.json({
     status: 'online',
@@ -67,7 +67,7 @@ app.get('/api/health', (req, res) => {
  * - Stylometric adjustments
  * - Privacy score
  */
-app.post('/api/neutralize', async (req, res) => {
+app.post(['/api/neutralize', '/neutralize'], async (req, res) => {
   try {
     const { rawText, context } = req.body;
     if (!rawText || !rawText.trim()) {
@@ -87,7 +87,7 @@ app.post('/api/neutralize', async (req, res) => {
  * Handles Daily Work Summaries and Targeted Friction Feedback.
  * Automatically runs Affective Events Theory (AET) sentiment & cognitive strain analysis.
  */
-app.post('/api/submit', async (req, res) => {
+app.post(['/api/submit', '/submit'], async (req, res) => {
   try {
     const payload = req.body;
     const textToAnalyze = payload.neutralizedContent || payload.neutralizedText || payload.blockers || payload.achievements || '';
@@ -116,7 +116,7 @@ app.post('/api/submit', async (req, res) => {
 });
 
 // HR Authentication Endpoint
-app.post('/api/auth/login', (req, res) => {
+app.post(['/api/auth/login', '/auth/login'], (req, res) => {
   const { username, password } = req.body || {};
   const validUser = (username || '').trim().toLowerCase() === 'raunak';
   const validPass = (password || '').trim() === 'Raunak123' || (password || '').trim().toLowerCase() === 'raunak123';
@@ -138,7 +138,7 @@ app.post('/api/auth/login', (req, res) => {
  * Feature 3: Real-Time HR Analytics Dashboard Metrics
  * Supports ?timeframe=day|week|1month|3month
  */
-app.get('/api/analytics', async (req, res) => {
+app.get(['/api/analytics', '/analytics'], async (req, res) => {
   try {
     const timeframe = req.query.timeframe || 'day';
     const metrics = await getAnalyticsMetrics(timeframe);
@@ -152,7 +152,7 @@ app.get('/api/analytics', async (req, res) => {
 /**
  * Sanitized Submissions Feed (Only returns PII-scrubbed, neutralized content)
  */
-app.get('/api/submissions', async (req, res) => {
+app.get(['/api/submissions', '/submissions'], async (req, res) => {
   try {
     const all = await getAllSubmissions();
     // Safety guarantee: Ensure no raw text ever leaves the server
@@ -181,7 +181,7 @@ app.get('/api/submissions', async (req, res) => {
 /**
  * Feature 4: Automated Problem Highlighting (Weekly Hurdles & Monthly Bottlenecks)
  */
-app.get('/api/clusters', async (req, res) => {
+app.get(['/api/clusters', '/clusters'], async (req, res) => {
   try {
     const clusters = await getClusters();
     res.json(clusters);
@@ -190,7 +190,7 @@ app.get('/api/clusters', async (req, res) => {
   }
 });
 
-app.post('/api/clusters/regenerate', async (req, res) => {
+app.post(['/api/clusters/regenerate', '/clusters/regenerate'], async (req, res) => {
   try {
     const submissions = await getAllSubmissions();
     const newClusters = await generateSemanticClusters(submissions);
@@ -210,7 +210,7 @@ app.post('/api/clusters/regenerate', async (req, res) => {
 /**
  * Action & Resolution Tracker ("Closing the Loop")
  */
-app.get('/api/actions', async (req, res) => {
+app.get(['/api/actions', '/actions'], async (req, res) => {
   try {
     const actions = await getAllActions();
     res.json(actions);
@@ -219,7 +219,7 @@ app.get('/api/actions', async (req, res) => {
   }
 });
 
-app.post('/api/actions', async (req, res) => {
+app.post(['/api/actions', '/actions'], async (req, res) => {
   try {
     const action = await addAction(req.body);
     res.json({ success: true, action });
@@ -228,7 +228,7 @@ app.post('/api/actions', async (req, res) => {
   }
 });
 
-app.patch('/api/actions/:id', async (req, res) => {
+app.patch(['/api/actions/:id', '/actions/:id'], async (req, res) => {
   try {
     const updated = await updateAction(req.params.id, req.body);
     if (!updated) return res.status(404).json({ error: 'Action not found' });
@@ -241,7 +241,7 @@ app.patch('/api/actions/:id', async (req, res) => {
 /**
  * Interactive HR Problem Discussion with Gemini AI
  */
-app.post('/api/hr-discuss', async (req, res) => {
+app.post(['/api/hr-discuss', '/hr-discuss'], async (req, res) => {
   try {
     const { message, chatHistory } = req.body;
     if (!message || !message.trim()) {
