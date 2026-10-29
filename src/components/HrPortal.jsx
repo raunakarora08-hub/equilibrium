@@ -335,6 +335,30 @@ export default function HrPortal({ hrUser, onLoginSuccess }) {
         })
       });
 
+      if (!res.ok) {
+        const errorText = await res.text();
+        let errorMsg = `Server returned status ${res.status}`;
+        try {
+          const parsed = JSON.parse(errorText);
+          if (parsed.error) errorMsg = parsed.error;
+          else if (parsed.reply) errorMsg = parsed.reply;
+        } catch (_) {
+          if (res.status === 504) {
+            errorMsg = 'Request timed out on server. Please try a shorter question.';
+          }
+        }
+        setChatMessages([
+          ...newHistory,
+          {
+            role: 'assistant',
+            text: `⚠️ Notice: ${errorMsg}`,
+            actionProposal: null,
+            actionPublished: false
+          }
+        ]);
+        return;
+      }
+
       const data = await res.json();
       setChatMessages([
         ...newHistory,
@@ -347,7 +371,7 @@ export default function HrPortal({ hrUser, onLoginSuccess }) {
       ]);
     } catch (err) {
       console.error('HR discuss error:', err);
-      setChatMessages([...newHistory, { role: 'assistant', text: 'Error communicating with AI advisor. Please try again.' }]);
+      setChatMessages([...newHistory, { role: 'assistant', text: `Error communicating with AI advisor (${err.message}). Please try again.` }]);
     } finally {
       setIsDiscussing(false);
     }

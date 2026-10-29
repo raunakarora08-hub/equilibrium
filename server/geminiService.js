@@ -10,19 +10,24 @@ function getGeminiApiKey() {
   return Buffer.from('QVEuQWI4Uk42SThrM1kxQzZpUzZKSklURFVTUU5vU01yX21Bc3JIOGZvX1Q3eVptNWdWdWc=', 'base64').toString('utf-8');
 }
 
-async function callGemini(prompt, systemInstruction = '') {
+async function callGemini(prompt, systemInstruction = '', maxTokens = 1000) {
   const apiKey = getGeminiApiKey();
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY is missing.');
   }
 
-  const models = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash'];
+  // Active models supported by the API key
+  const models = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.5-flash-lite', 'gemini-2.5-pro'];
   const body = {
     contents: [
       {
         parts: [{ text: prompt }]
       }
-    ]
+    ],
+    generationConfig: {
+      maxOutputTokens: maxTokens,
+      thinkingConfig: { thinkingBudget: 0 }
+    }
   };
 
   if (systemInstruction) {
@@ -100,7 +105,7 @@ ${rawText}
 Please process and return the JSON object:`;
 
   try {
-    const rawResult = await callGemini(prompt, systemInstruction);
+    const rawResult = await callGemini(prompt, systemInstruction, 600);
     const cleaned = rawResult.replace(/```json/g, '').replace(/```/g, '').trim();
     return JSON.parse(cleaned);
   } catch (err) {
@@ -148,7 +153,7 @@ Respond with strict JSON only:
 }`;
 
   try {
-    const rawResult = await callGemini(prompt);
+    const rawResult = await callGemini(prompt, '', 300);
     const cleaned = rawResult.replace(/```json/g, '').replace(/```/g, '').trim();
     return JSON.parse(cleaned);
   } catch (err) {
@@ -219,7 +224,7 @@ Respond with strict JSON in this exact format:
 }`;
 
   try {
-    const rawResult = await callGemini(prompt);
+    const rawResult = await callGemini(prompt, '', 300);
     const cleaned = rawResult.replace(/```json/g, '').replace(/```/g, '').trim();
     return JSON.parse(cleaned);
   } catch (err) {
@@ -234,11 +239,9 @@ Respond with strict JSON in this exact format:
  * solutions regarding employee complaints, specific named conflicts, or systemic hurdles.
  */
 export async function discussProblemsWithAI(userQuestion, submissions = [], clusters = {}, chatHistory = []) {
-  const anonymizedReports = submissions.slice(0, 20).map(s => ({
+  const anonymizedReports = submissions.slice(0, 12).map(s => ({
     department: s.department,
-    severity: s.severity || 'normal',
     text: s.neutralizedContent || s.blockers || s.content,
-    sentiment: s.sentimentScore,
     strain: s.cognitiveStrain
   }));
 
@@ -277,7 +280,7 @@ GUIDELINES:
   const prompt = `${conversationContext}HR LEAD QUESTION: ${userQuestion}\n\nProvide strategic advice and resolution ideas:`;
 
   try {
-    const rawResult = await callGemini(prompt, systemInstruction);
+    const rawResult = await callGemini(prompt, systemInstruction, 1000);
     let reply = rawResult;
     let actionProposal = null;
 
