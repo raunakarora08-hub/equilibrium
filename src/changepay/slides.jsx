@@ -283,81 +283,157 @@ const ProcessSlide = () => (
   </>
 );
 
-// ── 4. Root cause ──────────────────────────────────────────────────────
-const BONES = [
-  { x: 260, up: true, cat: 'Manpower', cause: 'One fixed rider per block' },
-  { x: 510, up: true, cat: 'Methods', cause: 'Batching · only 2 status updates' },
-  { x: 760, up: true, cat: 'Machines', cause: 'Limited slots\n(21 · 21 · 14)' },
-  { x: 260, up: false, cat: 'Materials', cause: 'Food cools while waiting' },
-  { x: 510, up: false, cat: 'Environment', cause: '85% of orders 10 PM – 1 AM' },
-  { x: 760, up: false, cat: 'Policy', cause: 'No pickup deadline' },
-];
-const WHYS = [
-  'Orders wait after the food is ready',
-  'Batching + full smart boxes',
-  'Late pickups; riders tied to one block',
-  'No updates, no deadline, no demand-based riders',
-  'Process not designed for the 10 PM – 1 AM peak',
+// ── 4. Fishbone (as a fish: smiling head = the effect, wagging tail) ───
+const SPINE_Y = 560;
+const SPINE_X0 = 250;
+const HEAD_X = 1405;
+const JUNCTIONS = [600, 940, 1280];
+const BONE_DX = 240;
+const TOP_END_Y = 290;
+const BOTTOM_END_Y = 830;
+
+const FISH_BONES = [
+  { up: true, cat: 'Manpower', causes: ['One fixed rider per hostel block', 'Riders stuck 40–50 min at reception calling students', 'Busy-block riders overloaded while others sit idle'] },
+  { up: true, cat: 'Methods', causes: ['Orders held until minimum batch size', 'No hostel-wise sequencing of orders', 'Students get only two status updates (accepted, in box)'] },
+  { up: true, cat: 'Machines / Equipment', causes: ['Limited smart-box slots (21 · 21 · 14)', 'Slots jam or get stuck', 'Slots held by uncollected orders for an hour or more'] },
+  { up: false, cat: 'Materials', causes: ['Food cools while waiting in box or at reception', 'Slow items (Maggi, thali) hold the batch', 'Packaging loses heat'] },
+  { up: false, cat: 'Environment', causes: ['85% of orders in 10 PM – 1 AM', 'Uneven demand: HB4 and HB1 dominate', 'Crowded reception area during the peak'] },
+  { up: false, cat: 'Management / Policy', causes: ['No reason for students to collect quickly', 'Order-status data not used to inform students', 'Rider allocation not based on demand'] },
 ];
 
-const RootCauseSlide = () => (
+const FishboneSlide = () => (
   <>
-    <Head eyebrow="Root Cause Analysis" title="Fishbone and Why-Why" />
-    <div className="card build" style={{ left: 110, top: 232, width: 1100, height: 470, '--d': '0.15s' }}>
-      <svg width={1100} height={470} style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
-        <line className="draw" pathLength={1} x1={60} y1={235} x2={895} y2={235} stroke="#1B2A4E" strokeWidth={6} strokeLinecap="round" style={{ '--d': '0.3s' }} />
-        {BONES.map((b, i) => (
-          <line key={i} className="draw" pathLength={1} x1={b.x} y1={235} x2={b.x - 120} y2={b.up ? 92 : 378} stroke={b.up ? '#2F6FDE' : '#EE8A32'} strokeWidth={4} strokeLinecap="round" style={{ '--d': `${0.5 + i * 0.1}s` }} />
-        ))}
-        <circle className="spine-pulse" cx={70} cy={235} r={9} fill="#F2B33D" />
-      </svg>
-      {BONES.map((b, i) => (
+    <Head eyebrow="Root Cause Analysis" title="Fishbone Diagram" />
+    <svg width={1920} height={960} style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
+      {/* Tail */}
+      <g className="fish-tail">
+        <path d={`M ${SPINE_X0 + 6} ${SPINE_Y} L 132 ${SPINE_Y - 92} Q 168 ${SPINE_Y} 132 ${SPINE_Y + 92} Z`} fill="#1B2A4E" />
+      </g>
+      {/* Spine */}
+      <line className="draw" pathLength={1} x1={SPINE_X0} y1={SPINE_Y} x2={HEAD_X + 10} y2={SPINE_Y} stroke="#1B2A4E" strokeWidth={8} strokeLinecap="round" style={{ '--d': '0.15s' }} />
+      {/* Bones + the short arrows each cause hangs on */}
+      {FISH_BONES.map((b, bi) => {
+        const jx = JUNCTIONS[bi % 3];
+        const endY = b.up ? TOP_END_Y : BOTTOM_END_Y;
+        const color = b.up ? '#2F6FDE' : '#EE8A32';
+        return (
+          <g key={b.cat}>
+            <line className="draw" pathLength={1} x1={jx} y1={SPINE_Y} x2={jx - BONE_DX} y2={endY} stroke={color} strokeWidth={5} strokeLinecap="round" style={{ '--d': `${0.35 + bi * 0.08}s` }} />
+            {b.causes.map((_, ci) => {
+              const t = 0.25 + ci * 0.25;
+              const p = b.up ? { x: jx - BONE_DX + t * BONE_DX, y: endY + t * (SPINE_Y - endY) } : { x: jx - t * BONE_DX, y: SPINE_Y + t * (endY - SPINE_Y) };
+              return (
+                <g key={ci} className="build" style={{ '--d': `${0.7 + bi * 0.08 + ci * 0.05}s` }}>
+                  <line x1={p.x - 150} y1={p.y} x2={p.x - 8} y2={p.y} stroke="#8C96AB" strokeWidth={2} />
+                  <path d={`M ${p.x - 8} ${p.y - 5} L ${p.x} ${p.y} L ${p.x - 8} ${p.y + 5} Z`} fill="#8C96AB" />
+                </g>
+              );
+            })}
+          </g>
+        );
+      })}
+      {/* Head: the effect, smiling regardless */}
+      <g className="build-pop" style={{ '--d': '0.25s', transformOrigin: '1600px 560px' }}>
+        <path d={`M ${HEAD_X} 372 C 1610 340, 1835 430, 1850 ${SPINE_Y} C 1835 690, 1610 780, ${HEAD_X} 748 C 1450 660, 1450 460, ${HEAD_X} 372 Z`} fill="#E0474C" />
+        <path d={`M 1462 418 C 1500 480, 1500 640, 1462 702`} fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth={6} strokeLinecap="round" />
+        <g className="fish-eye">
+          <circle cx={1752} cy={472} r={24} fill="#FFFFFF" />
+          <circle cx={1758} cy={474} r={11} fill="#1B2A4E" />
+          <circle cx={1762} cy={469} r={4} fill="#FFFFFF" />
+        </g>
+        <path className="fish-smile" d="M 1788 604 Q 1818 634 1844 598" fill="none" stroke="#FFFFFF" strokeWidth={6} strokeLinecap="round" />
+        <circle cx={1792} cy={566} r={9} fill="#F79A9D" opacity={0.8} />
+      </g>
+      {/* Bubbles from the mouth */}
+      {[0, 1, 2].map((i) => (
+        <circle key={i} className="fish-bubble" cx={1858} cy={590} r={7 + i * 3} fill="none" stroke="#9DB8EE" strokeWidth={3} style={{ animationDelay: `${i * 1.1}s` }} />
+      ))}
+    </svg>
+    {/* Effect text inside the head */}
+    <div className="build" style={{ position: 'absolute', left: 1490, top: 452, width: 225, color: '#FFFFFF', '--d': '0.5s' }}>
+      <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: '0.14em', opacity: 0.85 }}>EFFECT</div>
+      <div style={{ fontSize: 21, fontWeight: 800, lineHeight: 1.25, marginTop: 6 }}>ChangePay hostel orders exceed the promised 45–50 min delivery time</div>
+      <div style={{ fontSize: 16, fontWeight: 700, marginTop: 8, opacity: 0.9 }}>(worst at 10 PM – 2 AM)</div>
+    </div>
+    {/* Category pills + cause labels */}
+    {FISH_BONES.map((b, bi) => {
+      const jx = JUNCTIONS[bi % 3];
+      const endY = b.up ? TOP_END_Y : BOTTOM_END_Y;
+      return (
         <React.Fragment key={b.cat}>
-          <span className="chip build-pop" style={{ position: 'absolute', left: b.x - 120, top: b.up ? 50 : 388, transform: 'translateX(-50%)', background: b.up ? 'var(--blue)' : 'var(--orange)', color: '#FFFFFF', fontSize: 17, letterSpacing: '0.06em', textTransform: 'uppercase', '--d': `${0.7 + i * 0.1}s` }}>
+          <span
+            className="chip build-pop"
+            style={{ position: 'absolute', left: jx - BONE_DX, top: b.up ? endY - 50 : endY + 6, transform: 'translateX(-50%)', background: b.up ? 'var(--blue)' : 'var(--orange)', color: '#FFFFFF', fontSize: 17, letterSpacing: '0.06em', textTransform: 'uppercase', '--d': `${0.55 + bi * 0.08}s` }}
+          >
             {b.cat}
           </span>
-          <div className="build" style={{ position: 'absolute', left: b.x - 40, top: b.up ? 132 : 296, width: b.x > 700 ? 150 : 190, whiteSpace: 'pre-line', fontSize: 18, fontWeight: 700, color: 'var(--text)', lineHeight: 1.3, '--d': `${0.8 + i * 0.1}s` }}>
-            {b.cause}
-          </div>
+          {b.causes.map((c, ci) => {
+            const t = 0.25 + ci * 0.25;
+            const p = b.up ? { x: jx - BONE_DX + t * BONE_DX, y: endY + t * (SPINE_Y - endY) } : { x: jx - t * BONE_DX, y: SPINE_Y + t * (endY - SPINE_Y) };
+            return (
+              <div
+                key={c}
+                className="build"
+                // Upper bones lean left, so their labels sit further left to clear the bone above the arrow
+                style={{ position: 'absolute', left: p.x - (b.up ? 300 : 258), top: p.y - 50, width: 240, height: 46, display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', textAlign: 'right', fontSize: 16, fontWeight: 700, lineHeight: 1.22, color: 'var(--text)', '--d': `${0.75 + bi * 0.08 + ci * 0.05}s` }}
+              >
+                {c}
+              </div>
+            );
+          })}
         </React.Fragment>
-      ))}
-      <div style={{ position: 'absolute', left: 905, top: 165, width: 175, height: 140, borderRadius: 20, background: 'var(--red)', color: '#FFFFFF', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', padding: 14, boxShadow: '0 18px 36px -16px rgba(224,71,76,0.6)' }}>
-        <div style={{ fontSize: 24, fontWeight: 800, lineHeight: 1.15 }}>Late deliveries</div>
-        <div style={{ fontSize: 16, fontWeight: 600, marginTop: 6, opacity: 0.9, whiteSpace: 'nowrap' }}>over 45–50 min</div>
-      </div>
-    </div>
-    <div className="card build" style={{ left: 1240, top: 232, width: 570, height: 470, padding: '30px 30px 30px 34px', '--d': '0.3s' }}>
-      <div className="card-label">Why-Why</div>
-      <div style={{ position: 'absolute', left: 58, top: 86, width: 3, height: 352, background: 'var(--blue-soft)' }} />
-      <span className="why-flow" style={{ position: 'absolute', left: 52, top: 80, width: 15, height: 15, borderRadius: '50%', background: 'var(--blue)' }} />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 22 }}>
-        {WHYS.map((w, i) => (
-          <div key={w} className="build" style={{ display: 'flex', alignItems: 'center', gap: 16, '--d': `${0.5 + i * 0.15}s` }}>
-            <span style={{ flexShrink: 0, width: 50, height: 50, borderRadius: 14, background: 'var(--blue)', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, fontWeight: 800, position: 'relative', zIndex: 1 }}>
-              {i + 1}
-            </span>
-            <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--navy)', lineHeight: 1.25 }}>{w}</span>
+      );
+    })}
+  </>
+);
+
+// ── 5. Why-Why (one row per press) ─────────────────────────────────────
+const WHY_ROWS = [
+  { label: 'Problem', kind: 'problem', text: 'Students receive ChangePay orders well after the 45–50 min promise, especially at 10 PM – 2 AM.' },
+  { label: 'Why 1', kind: 'why', text: 'Orders wait a long time after the food is ready, instead of moving straight to the student.' },
+  { label: 'Why 2', kind: 'why', text: 'Dispatch and handover are slow: batching at the outlet, and full smart boxes force manual handover at reception.' },
+  { label: 'Why 3', kind: 'why', text: 'Box slots stay occupied because students collect late, and each rider is tied to one block.' },
+  { label: 'Why 4', kind: 'why', text: 'Students are not told when food is prepared or out for delivery, have no reason to hurry, and riders are not allocated by demand.' },
+  { label: 'Why 5', kind: 'why', text: 'The process is not designed around peak demand: neither box slots nor riders are managed against the 10 PM – 1 AM rush.' },
+  { label: 'Root cause', kind: 'root', text: 'No demand-responsive dispatch and handover process linking batch release, student pickup, smart-box slots and rider allocation.' },
+];
+const WHY_STYLE = {
+  problem: { badge: 'var(--red)', box: 'var(--red-soft)', border: 'var(--red)' },
+  why: { badge: 'var(--blue)', box: 'var(--blue-soft)', border: 'var(--blue)' },
+  root: { badge: 'var(--green)', box: 'var(--green-soft)', border: 'var(--green)' },
+};
+
+const WhyWhySlide = ({ step = 0 }) => (
+  <>
+    <Head eyebrow="Root Cause Analysis" title="Why-Why Analysis" />
+    <div style={{ position: 'absolute', left: 110, top: 232, width: 1700, display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {WHY_ROWS.map((r, i) => {
+        const shown = i <= step;
+        const st = WHY_STYLE[r.kind];
+        const latest = i === step;
+        return (
+          <div key={r.label} style={{ position: 'relative', display: 'flex', gap: 22, height: 72, visibility: shown ? 'visible' : 'hidden' }} className={shown ? 'why-in' : ''}>
+            <div style={{ width: 220, flexShrink: 0, borderRadius: 14, background: st.badge, color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              {r.label}
+            </div>
+            <div
+              className={r.kind === 'root' && shown ? 'root-glow' : ''}
+              style={{ flex: 1, borderRadius: 14, background: st.box, border: `2.5px solid ${st.border}`, display: 'flex', alignItems: 'center', padding: '0 26px', fontSize: 23, fontWeight: r.kind === 'why' ? 600 : 800, color: 'var(--navy)', lineHeight: 1.3 }}
+            >
+              {r.text}
+            </div>
+            {/* Connector to the next row; bounces on the newest row while more are to come */}
+            {i < WHY_ROWS.length - 1 ? (
+              <span className={latest ? 'why-next' : ''} style={{ position: 'absolute', left: 102, top: 74, width: 0, height: 0, borderLeft: '8px solid transparent', borderRight: '8px solid transparent', borderTop: '10px solid var(--navy)', opacity: latest ? 1 : 0.45 }} />
+            ) : null}
           </div>
-        ))}
-      </div>
-    </div>
-    <div className="card build" style={{ left: 110, top: 728, width: 1700, height: 132, padding: '24px 40px', display: 'flex', alignItems: 'center', gap: 40, border: '2.5px solid var(--green)', background: '#F4FBF8', '--d': '0.9s' }}>
-      <div style={{ flex: 1 }}>
-        <div className="card-label" style={{ color: 'var(--green)' }}>Root cause</div>
-        <div style={{ fontSize: 34, fontWeight: 800, color: 'var(--navy)', letterSpacing: '-0.02em', marginTop: 6 }}>No demand-responsive dispatch and handover process</div>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, auto)', gap: 10 }}>
-        {['Slow pickups', 'Limited slots', 'No status updates', 'Fixed riders, uneven demand'].map((t) => (
-          <span key={t} className="chip green" style={{ fontSize: 17 }}>
-            {t}
-          </span>
-        ))}
-      </div>
+        );
+      })}
     </div>
   </>
 );
 
-// ── 5. Queueing models ─────────────────────────────────────────────────
+// ── 6. Queueing models ─────────────────────────────────────────────────
 const BOXES = [
   { name: 'HB4-Boys', rho: 1.55 },
   { name: 'HB4-Girls', rho: 1.08 },
@@ -478,7 +554,7 @@ const ModelsSlide = () => (
   </>
 );
 
-// ── 6. Solution + plan ─────────────────────────────────────────────────
+// ── 7. Solution + plan ─────────────────────────────────────────────────
 const PHASES = [
   { name: 'Notify', when: 'Weeks 1–2', what: 'Add the two new notifications' },
   { name: 'Pilot', when: 'Weeks 3–4', what: 'Late-pickup charge at HB4-Boys' },
@@ -593,7 +669,7 @@ const SolutionSlide = () => (
   </>
 );
 
-// ── 7. Before vs after ─────────────────────────────────────────────────
+// ── 8. Before vs after ─────────────────────────────────────────────────
 const ROWS = [
   { measure: 'Smart-box utilisation', before: '1.08–1.55 (overflow)', after: '0.40–0.58' },
   { measure: 'Manual handovers per night', before: '≈ 81', after: '0' },
@@ -664,7 +740,8 @@ export const SLIDES = [
   { id: 'title', Component: TitleSlide, origin: '80% 40%' }, // zooms into the clock on the way out
   { id: 'problem', Component: ProblemSlide },
   { id: 'process', Component: ProcessSlide, origin: '50% 45%' },
-  { id: 'root-cause', Component: RootCauseSlide, origin: '50% 85%' },
+  { id: 'fishbone', Component: FishboneSlide, origin: '85% 58%' }, // zooms into the fish head on the way out
+  { id: 'why-why', Component: WhyWhySlide, steps: 6, origin: '50% 85%' },
   { id: 'models', Component: ModelsSlide },
   { id: 'solution', Component: SolutionSlide },
   { id: 'impact', Component: ImpactSlide },

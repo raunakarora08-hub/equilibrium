@@ -142,15 +142,25 @@ html, body, #cp-root {
 .ring { animation: ring 1.2s ease-in-out infinite; transform-origin: 50% 50%; }
 @keyframes ring { 0%, 50%, 100% { transform: rotate(0); } 10%, 30% { transform: rotate(-14deg); } 20%, 40% { transform: rotate(14deg); } }
 
-/* ── Slide 4: fishbone draw-in, pulse along the spine ──────────────── */
+/* ── Slides 4–5: fishbone (as a fish) and the Why-Why build ──────────── */
 .draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 1s var(--ease) forwards; animation-delay: var(--d, 0s); }
 @keyframes draw { to { stroke-dashoffset: 0; } }
-.spine-pulse { animation: spinePulse 3s ease-in infinite; }
-@keyframes spinePulse { from { transform: translateX(0); opacity: 0; } 15% { opacity: 1; } to { transform: translateX(780px); opacity: 0; } }
-.why-flow { animation: whyFlow 5s linear infinite; }
-@keyframes whyFlow { from { transform: translateY(0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } to { transform: translateY(470px); opacity: 0; } }
+.fish-tail { transform-box: view-box; transform-origin: 256px 560px; animation: wag 2.4s ease-in-out infinite; }
+@keyframes wag { 0%, 100% { transform: rotate(-7deg); } 50% { transform: rotate(7deg); } }
+.fish-eye { transform-box: fill-box; transform-origin: center; animation: blink 4.5s ease-in-out infinite; }
+@keyframes blink { 0%, 44%, 50%, 100% { transform: scaleY(1); } 47% { transform: scaleY(0.1); } }
+.fish-smile { transform-box: fill-box; transform-origin: center; animation: smile 3s ease-in-out infinite; }
+@keyframes smile { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.25); } }
+.fish-bubble { transform-box: fill-box; transform-origin: center; animation: bubble 3.3s ease-out infinite; opacity: 0; }
+@keyframes bubble { 0% { opacity: 0; transform: translate(0, 0) scale(0.5); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(26px, -150px) scale(1.2); } }
+.why-in { animation: whyIn 0.32s var(--ease) both; }
+@keyframes whyIn { from { opacity: 0; transform: translateY(-14px) scale(0.98); } to { opacity: 1; transform: none; } }
+.why-next { animation: whyNext 1s ease-in-out infinite; }
+@keyframes whyNext { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(5px); } }
+.root-glow { animation: rootGlow 2.4s ease-in-out infinite; }
+@keyframes rootGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(28, 156, 107, 0.35); } 50% { box-shadow: 0 0 0 10px rgba(28, 156, 107, 0); } }
 
-/* ── Slide 5: overflow hatching + capacity drop ─────────────────────── */
+/* ── Slide 6: overflow hatching + capacity drop ─────────────────────── */
 .overflow { background-image: repeating-linear-gradient(-45deg, var(--red) 0 10px, #F06A6E 10px 20px); background-size: 28px 28px; animation: hatch 1.2s linear infinite; }
 @keyframes hatch { to { background-position: 28px 0; } }
 .grow-x { transform-origin: left center; animation: growX 1.2s var(--ease) both; animation-delay: var(--d, 0s); }
@@ -160,7 +170,7 @@ html, body, #cp-root {
 .missing { animation: missing 2.4s ease-in-out infinite; animation-delay: var(--d, 0s); }
 @keyframes missing { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
-/* ── Slide 6: solution micro-visuals + roadmap ──────────────────────── */
+/* ── Slide 7: solution micro-visuals + roadmap ──────────────────────── */
 .notif { animation: notif 6s var(--ease) infinite; animation-delay: var(--d, 0s); opacity: 0; }
 @keyframes notif { 0% { opacity: 0; transform: translateY(-16px) scale(0.95); } 8%, 80% { opacity: 1; transform: none; } 92%, 100% { opacity: 0; transform: translateY(8px); } }
 .needle { transform-origin: 90px 90px; animation: needle 8s ease-in-out infinite; }
@@ -172,7 +182,7 @@ html, body, #cp-root {
 .road-marker { animation: roadMarker 8s ease-in-out infinite; }
 @keyframes roadMarker { 0% { left: 0%; } 85%, 100% { left: 100%; } }
 
-/* ── Slide 7: before → after ────────────────────────────────────────── */
+/* ── Slide 8: before → after ────────────────────────────────────────── */
 .arrow-flow { animation: arrowFlow 1.6s ease-in-out infinite; }
 @keyframes arrowFlow { 0%, 100% { transform: translateX(-6px); opacity: 0.5; } 50% { transform: translateX(6px); opacity: 1; } }
 .kpi-fill { transform-origin: left center; animation: kpiFill 1.6s var(--ease) both; animation-delay: var(--d, 0s); }

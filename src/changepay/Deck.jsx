@@ -42,6 +42,8 @@ export default function Deck() {
   const [leaving, setLeaving] = useState(null);
   const [dir, setDir] = useState('forward');
   const [entryKey, setEntryKey] = useState(0);
+  // Build step within the current slide (slides with `steps` reveal one item per press, like PowerPoint)
+  const [step, setStep] = useState(0);
   const [scale, setScale] = useState(1);
   const [idle, setIdle] = useState(false);
   const [arrived, setArrived] = useState(false);
@@ -66,18 +68,26 @@ export default function Deck() {
       if (next < 0 || next >= SLIDES.length || next === index) return;
       const d = next > index ? 'forward' : 'backward';
       clearTimeout(leaveTimer.current);
-      setLeaving({ index, dir: d });
+      setLeaving({ index, dir: d, step });
       setDir(d);
       setIndex(next);
+      // Going back lands on a fully built slide; going forward starts its build from the top
+      setStep(d === 'backward' ? (SLIDES[next].steps ?? 0) : 0);
       setEntryKey((k) => k + 1); // also restarts the rider's one-minute run
       setArrived(false);
       leaveTimer.current = setTimeout(() => setLeaving(null), TRANSITION_MS);
       window.history.replaceState(null, '', `#${next + 1}`);
     },
-    [index],
+    [index, step],
   );
-  const next = useCallback(() => goTo(index + 1), [goTo, index]);
-  const prev = useCallback(() => goTo(index - 1), [goTo, index]);
+  const next = useCallback(() => {
+    if (step < (SLIDES[index].steps ?? 0)) setStep((s) => s + 1);
+    else goTo(index + 1);
+  }, [goTo, index, step]);
+  const prev = useCallback(() => {
+    if (step > 0) setStep((s) => s - 1);
+    else goTo(index - 1);
+  }, [goTo, index, step]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -121,11 +131,11 @@ export default function Deck() {
     };
   }, [wake]);
 
-  const renderSlide = (i, cls, key) => {
+  const renderSlide = (i, cls, key, slideStep) => {
     const S = SLIDES[i].Component;
     return (
       <div key={key} className={`slide ${cls}`} style={{ transformOrigin: SLIDES[i].origin ?? '50% 50%' }}>
-        <S />
+        <S step={slideStep} />
       </div>
     );
   };
@@ -137,8 +147,8 @@ export default function Deck() {
       <div className="stage" style={{ transform: `scale(${scale})` }}>
         <div className="glow g1" />
         <div className="glow g2" />
-        {leaving ? renderSlide(leaving.index, `exit-${leaving.dir}`, `leave-${entryKey}`) : null}
-        {renderSlide(index, leaving ? `enter-${dir}` : '', `enter-${entryKey}`)}
+        {leaving ? renderSlide(leaving.index, `exit-${leaving.dir}`, `leave-${entryKey}`, leaving.step) : null}
+        {renderSlide(index, leaving ? `enter-${dir}` : '', `enter-${entryKey}`, step)}
 
         {/* The road stays put across slides; the rider restarts on every slide and arrives after 60 s */}
         <div className="road">
