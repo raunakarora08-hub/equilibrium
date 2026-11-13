@@ -1,0 +1,179 @@
+/* ChangePay MDS deck — light and clean, navy + blue, red for delay, green for the fix. */
+:root {
+  --bg: #F5F7FB;
+  --surface: #FFFFFF;
+  --navy: #1B2A4E;
+  --text: #2B3752;
+  --muted: #6B7690;
+  --faint: #A9B1C3;
+  --blue: #2F6FDE;
+  --blue-soft: #E7EEFC;
+  --red: #E0474C;
+  --red-soft: #FCE9E9;
+  --orange: #EE8A32;
+  --orange-soft: #FDEFE2;
+  --amber: #F2B33D;
+  --amber-soft: #FDF4DF;
+  --green: #1C9C6B;
+  --green-soft: #E2F4EC;
+  --border: rgba(27, 42, 78, 0.09);
+  --shadow: 0 30px 70px -34px rgba(27, 42, 78, 0.32), 0 10px 24px -14px rgba(27, 42, 78, 0.12);
+  --font: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #cp-root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  font-family: var(--font);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Stage: a fixed 1920x1080 slide scaled to the window ───────────── */
+.viewport { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--bg); }
+.viewport.hide-cursor { cursor: none; }
+.stage { position: relative; width: 1920px; height: 1080px; flex-shrink: 0; overflow: hidden; background: var(--bg); }
+.slide { position: absolute; left: 0; top: 0; width: 1920px; height: 960px; overflow: hidden; will-change: transform, opacity, filter; }
+
+.slide.enter-forward { animation: enterForward 850ms var(--ease) both; }
+.slide.exit-forward { animation: exitForward 700ms cubic-bezier(0.55, 0, 0.8, 0.2) both; }
+.slide.enter-backward { animation: enterBackward 850ms var(--ease) both; }
+.slide.exit-backward { animation: exitBackward 700ms cubic-bezier(0.55, 0, 0.8, 0.2) both; }
+@keyframes enterForward { from { opacity: 0; transform: scale(0.88); filter: blur(14px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes exitForward { from { opacity: 1; transform: none; filter: none; } to { opacity: 0; transform: scale(1.7); filter: blur(16px); } }
+@keyframes enterBackward { from { opacity: 0; transform: scale(1.35); filter: blur(14px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes exitBackward { from { opacity: 1; transform: none; filter: none; } to { opacity: 0; transform: scale(0.82); filter: blur(16px); } }
+
+/* Soft drifting background glows */
+.glow { position: absolute; border-radius: 50%; pointer-events: none; animation: drift 24s ease-in-out infinite alternate; }
+.glow.g1 { width: 900px; height: 900px; right: -300px; top: -380px; background: radial-gradient(circle, rgba(47, 111, 222, 0.13) 0%, rgba(47, 111, 222, 0) 66%); }
+.glow.g2 { width: 800px; height: 800px; left: -320px; bottom: -420px; background: radial-gradient(circle, rgba(242, 179, 61, 0.14) 0%, rgba(242, 179, 61, 0) 66%); animation-delay: -10s; }
+@keyframes drift { 0% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-70px, 50px) scale(1.06); } 100% { transform: translate(60px, -40px) scale(0.96); } }
+
+/* Build-in animations, run each time a slide is entered */
+.build { opacity: 0; animation: buildUp 0.9s var(--ease) both; animation-delay: var(--d, 0s); }
+@keyframes buildUp { from { opacity: 0; transform: translateY(30px); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+.build-pop { opacity: 0; animation: buildPop 0.8s var(--ease) both; animation-delay: var(--d, 0s); }
+@keyframes buildPop { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: none; } }
+
+/* ── Type ───────────────────────────────────────────────────────────── */
+.eyebrow { display: inline-flex; align-items: center; gap: 12px; font-size: 22px; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: var(--blue); }
+.eyebrow i { width: 10px; height: 10px; border-radius: 3px; background: var(--amber); transform: rotate(45deg); }
+.title { font-size: 66px; font-weight: 800; letter-spacing: -0.035em; line-height: 1.05; color: var(--navy); margin-top: 12px; }
+.head { position: absolute; left: 110px; top: 70px; right: 420px; }
+.card { position: absolute; background: var(--surface); border: 1px solid var(--border); border-radius: 28px; box-shadow: var(--shadow); }
+.card-label { font-size: 17px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.big-num { font-weight: 800; letter-spacing: -0.04em; line-height: 1; color: var(--navy); }
+.chip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 999px; font-size: 18px; font-weight: 700; white-space: nowrap; }
+.chip.red { background: var(--red-soft); color: var(--red); }
+.chip.green { background: var(--green-soft); color: var(--green); }
+.chip.blue { background: var(--blue-soft); color: var(--blue); }
+.chip.amber { background: var(--amber-soft); color: #B07A12; }
+.chip.navy { background: var(--navy); color: #FFFFFF; }
+
+/* ── Road + delivery rider (60 s per slide) ────────────────────────── */
+.road { position: absolute; left: 0; right: 0; bottom: 0; height: 120px; pointer-events: none; }
+.road .curb { position: absolute; left: 0; right: 0; top: 18px; height: 6px; background: #DCE2EC; }
+.road .asphalt { position: absolute; left: 0; right: 0; top: 24px; bottom: 0; background: linear-gradient(180deg, #E6EAF1 0%, #DDE2EB 100%); }
+.road .lane { position: absolute; left: 0; right: 0; top: 74px; height: 4px; background-image: repeating-linear-gradient(90deg, #FFFFFF 0 46px, transparent 46px 92px); opacity: 0.9; }
+.road .hostel { position: absolute; right: 26px; bottom: 34px; width: 150px; }
+.rider { position: absolute; left: 0; bottom: 30px; width: 190px; height: 121px; transform: translateX(-220px); animation: ride 60s linear forwards; }
+@keyframes ride { from { transform: translateX(-220px); } to { transform: translateX(1520px); } }
+.rider .bob { animation: bob 0.5s ease-in-out infinite alternate; }
+@keyframes bob { from { transform: translateY(0); } to { transform: translateY(-2.5px); } }
+.rider .wheel { transform-box: fill-box; transform-origin: center; animation: spin 0.45s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.rider .puff { transform-box: fill-box; transform-origin: center; animation: puff 0.9s ease-out infinite; opacity: 0; }
+.rider .puff.p2 { animation-delay: 0.3s; }
+.rider .puff.p3 { animation-delay: 0.6s; }
+@keyframes puff { 0% { opacity: 0.7; transform: translate(0, 0) scale(0.5); } 100% { opacity: 0; transform: translate(-34px, -10px) scale(1.6); } }
+.rider .speed { animation: speed 0.6s linear infinite; }
+@keyframes speed { 0% { opacity: 0; transform: translateX(10px); } 40% { opacity: 0.8; } 100% { opacity: 0; transform: translateX(-26px); } }
+.rider.arrived .wheel, .rider.arrived .bob, .rider.arrived .puff, .rider.arrived .speed { animation: none; }
+.rider.arrived .puff, .rider.arrived .speed { opacity: 0; }
+.parcel-drop { animation: parcelDrop 0.9s var(--ease) both; }
+@keyframes parcelDrop { 0% { transform: translate(-120px, -40px) scale(0.6); opacity: 0; } 60% { transform: translate(0, -18px) scale(1); opacity: 1; } 100% { transform: translate(0, 0); opacity: 1; } }
+.delivered { animation: buildPop 0.6s var(--ease) both; }
+
+/* ── 8-minute timer (K) ─────────────────────────────────────────────── */
+.timer { position: absolute; right: 44px; top: 34px; display: flex; align-items: center; gap: 12px; padding: 12px 22px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 14px 30px -16px rgba(27, 42, 78, 0.4); font-size: 34px; font-weight: 800; letter-spacing: -0.01em; color: var(--navy); font-variant-numeric: tabular-nums; z-index: 20; }
+.timer .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--green); }
+.timer.running .dot { animation: pulseDot 1s ease-in-out infinite; }
+.timer.paused { opacity: 0.75; }
+.timer.paused .dot { background: var(--faint); }
+.timer.warn { color: #B07A12; }
+.timer.warn .dot { background: var(--amber); }
+.timer.over { color: var(--red); animation: overBlink 1s steps(2, start) infinite; }
+.timer.over .dot { background: var(--red); }
+@keyframes pulseDot { 0%, 100% { box-shadow: 0 0 0 0 rgba(28, 156, 107, 0.45); } 50% { box-shadow: 0 0 0 8px rgba(28, 156, 107, 0); } }
+@keyframes overBlink { to { color: var(--navy); } }
+
+/* ── Slide 1: promise clock ─────────────────────────────────────────── */
+.clock-hand { transform-origin: 260px 260px; }
+.clock-min { animation: clockMin 9s linear infinite; }
+@keyframes clockMin { to { transform: rotate(360deg); } }
+.clock-hr { animation: clockHr 108s linear infinite; }
+@keyframes clockHr { to { transform: rotate(360deg); } }
+.clock-min line { animation: handColor 9s steps(1, end) infinite; }
+@keyframes handColor { 0% { stroke: var(--navy); } 75% { stroke: var(--red); } }
+
+/* ── Slide 3: order tokens flowing through the process ─────────────── */
+.token { position: absolute; top: 0; left: 0; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 8px; background: var(--amber); box-shadow: 0 6px 12px -4px rgba(176, 122, 18, 0.6); animation: pipe 14s linear infinite; }
+/* Quick through order → confirm → prepare; slow at batching; stuck at the smart box */
+@keyframes pipe {
+  0% { transform: translateX(0); opacity: 0; }
+  3% { opacity: 1; }
+  10% { transform: translateX(490px); }
+  30% { transform: translateX(735px); }
+  42% { transform: translateX(980px); }
+  86% { transform: translateX(1225px); }
+  96% { transform: translateX(1470px); opacity: 1; }
+  100% { transform: translateX(1500px); opacity: 0; }
+}
+.slot { border-radius: 7px; background: #EEF1F6; border: 1px solid var(--border); animation: fillSlot 9s ease-in-out infinite; animation-delay: var(--d, 0s); }
+@keyframes fillSlot { 0% { background: #EEF1F6; } 6%, 92% { background: var(--red); border-color: var(--red); } 100% { background: #EEF1F6; } }
+.full-stamp { animation: stamp 9s ease-in-out infinite; }
+@keyframes stamp { 0%, 62% { opacity: 0; transform: rotate(-12deg) scale(1.4); } 68%, 92% { opacity: 1; transform: rotate(-12deg) scale(1); } 100% { opacity: 0; } }
+.ring { animation: ring 1.2s ease-in-out infinite; transform-origin: 50% 50%; }
+@keyframes ring { 0%, 50%, 100% { transform: rotate(0); } 10%, 30% { transform: rotate(-14deg); } 20%, 40% { transform: rotate(14deg); } }
+
+/* ── Slide 4: fishbone draw-in, pulse along the spine ──────────────── */
+.draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 1s var(--ease) forwards; animation-delay: var(--d, 0s); }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+.spine-pulse { animation: spinePulse 3s ease-in infinite; }
+@keyframes spinePulse { from { transform: translateX(0); opacity: 0; } 15% { opacity: 1; } to { transform: translateX(780px); opacity: 0; } }
+.why-flow { animation: whyFlow 5s linear infinite; }
+@keyframes whyFlow { from { transform: translateY(0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } to { transform: translateY(470px); opacity: 0; } }
+
+/* ── Slide 5: overflow hatching + capacity drop ─────────────────────── */
+.overflow { background-image: repeating-linear-gradient(-45deg, var(--red) 0 10px, #F06A6E 10px 20px); background-size: 28px 28px; animation: hatch 1.2s linear infinite; }
+@keyframes hatch { to { background-position: 28px 0; } }
+.grow-x { transform-origin: left center; animation: growX 1.2s var(--ease) both; animation-delay: var(--d, 0s); }
+@keyframes growX { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.shrink-cap { transform-origin: left center; animation: shrinkCap 6s ease-in-out infinite; }
+@keyframes shrinkCap { 0%, 15% { transform: scaleX(1); } 45%, 85% { transform: scaleX(0.597); } 100% { transform: scaleX(1); } }
+.missing { animation: missing 2.4s ease-in-out infinite; animation-delay: var(--d, 0s); }
+@keyframes missing { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+/* ── Slide 6: solution micro-visuals + roadmap ──────────────────────── */
+.notif { animation: notif 6s var(--ease) infinite; animation-delay: var(--d, 0s); opacity: 0; }
+@keyframes notif { 0% { opacity: 0; transform: translateY(-16px) scale(0.95); } 8%, 80% { opacity: 1; transform: none; } 92%, 100% { opacity: 0; transform: translateY(8px); } }
+.needle { transform-origin: 90px 90px; animation: needle 8s ease-in-out infinite; }
+@keyframes needle { 0% { transform: rotate(-120deg); } 50% { transform: rotate(-10deg); } 100% { transform: rotate(-120deg); } }
+.pool-dot { animation: poolDot 3.6s ease-in-out infinite; animation-delay: var(--d, 0s); }
+@keyframes poolDot { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(var(--tx, 0), var(--ty, 0)); } }
+.road-fill { transform-origin: left center; animation: roadFill 8s ease-in-out infinite; }
+@keyframes roadFill { 0% { transform: scaleX(0); } 85%, 100% { transform: scaleX(1); } }
+.road-marker { animation: roadMarker 8s ease-in-out infinite; }
+@keyframes roadMarker { 0% { left: 0%; } 85%, 100% { left: 100%; } }
+
+/* ── Slide 7: before → after ────────────────────────────────────────── */
+.arrow-flow { animation: arrowFlow 1.6s ease-in-out infinite; }
+@keyframes arrowFlow { 0%, 100% { transform: translateX(-6px); opacity: 0.5; } 50% { transform: translateX(6px); opacity: 1; } }
+.kpi-fill { transform-origin: left center; animation: kpiFill 1.6s var(--ease) both; animation-delay: var(--d, 0s); }
+@keyframes kpiFill { from { transform: scaleX(var(--from, 0)); } to { transform: scaleX(1); } }

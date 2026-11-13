@@ -9,6 +9,14 @@
     {
       "source": "/api/(.*)",
       "destination": "/api/index.js"
+    },
+    {
+      "source": "/present",
+      "destination": "/present.html"
+    },
+    {
+      "source": "/changepay",
+      "destination": "/changepay.html"
     }
   ]
 }
