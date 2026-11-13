@@ -387,7 +387,7 @@ const FishboneSlide = () => (
   </>
 );
 
-// ── 5. Why-Why (one row per press) ─────────────────────────────────────
+// ── 5. Why-Why (rows reveal automatically) ──────────────────────────────
 const WHY_ROWS = [
   { label: 'Problem', kind: 'problem', text: 'Students receive ChangePay orders well after the 45–50 min promise, especially at 10 PM – 2 AM.' },
   { label: 'Why 1', kind: 'why', text: 'Orders wait a long time after the food is ready, instead of moving straight to the student.' },
@@ -403,28 +403,30 @@ const WHY_STYLE = {
   root: { badge: 'var(--green)', box: 'var(--green-soft)', border: 'var(--green)' },
 };
 
-const WhyWhySlide = ({ step = 0 }) => (
+// Rows reveal on their own: first at 0.4 s, then every 0.7 s, so the whole chain is in within 5 s
+const WHY_START = 0.4;
+const WHY_EVERY = 0.7;
+
+const WhyWhySlide = () => (
   <>
     <Head eyebrow="Root Cause Analysis" title="Why-Why Analysis" />
     <div style={{ position: 'absolute', left: 110, top: 232, width: 1700, display: 'flex', flexDirection: 'column', gap: 20 }}>
       {WHY_ROWS.map((r, i) => {
-        const shown = i <= step;
         const st = WHY_STYLE[r.kind];
-        const latest = i === step;
+        const at = WHY_START + i * WHY_EVERY;
         return (
-          <div key={r.label} style={{ position: 'relative', display: 'flex', gap: 22, height: 72, visibility: shown ? 'visible' : 'hidden' }} className={shown ? 'why-in' : ''}>
+          <div key={r.label} className="why-auto" style={{ position: 'relative', display: 'flex', gap: 22, height: 72, '--d': `${at}s` }}>
             <div style={{ width: 220, flexShrink: 0, borderRadius: 14, background: st.badge, color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
               {r.label}
             </div>
             <div
-              className={r.kind === 'root' && shown ? 'root-glow' : ''}
-              style={{ flex: 1, borderRadius: 14, background: st.box, border: `2.5px solid ${st.border}`, display: 'flex', alignItems: 'center', padding: '0 26px', fontSize: 23, fontWeight: r.kind === 'why' ? 600 : 800, color: 'var(--navy)', lineHeight: 1.3 }}
+              className={r.kind === 'root' ? 'root-glow' : ''}
+              style={{ flex: 1, borderRadius: 14, background: st.box, border: `2.5px solid ${st.border}`, display: 'flex', alignItems: 'center', padding: '0 26px', fontSize: 23, fontWeight: r.kind === 'why' ? 600 : 800, color: 'var(--navy)', lineHeight: 1.3, animationDelay: `${at + 0.4}s` }}
             >
               {r.text}
             </div>
-            {/* Connector to the next row; bounces on the newest row while more are to come */}
             {i < WHY_ROWS.length - 1 ? (
-              <span className={latest ? 'why-next' : ''} style={{ position: 'absolute', left: 102, top: 74, width: 0, height: 0, borderLeft: '8px solid transparent', borderRight: '8px solid transparent', borderTop: '10px solid var(--navy)', opacity: latest ? 1 : 0.45 }} />
+              <span style={{ position: 'absolute', left: 102, top: 74, width: 0, height: 0, borderLeft: '8px solid transparent', borderRight: '8px solid transparent', borderTop: '10px solid var(--navy)', opacity: 0.45 }} />
             ) : null}
           </div>
         );
@@ -556,10 +558,10 @@ const ModelsSlide = () => (
 
 // ── 7. Solution + plan ─────────────────────────────────────────────────
 const PHASES = [
-  { name: 'Notify', when: 'Weeks 1–2', what: 'Add the two new notifications' },
-  { name: 'Pilot', when: 'Weeks 3–4', what: 'Late-pickup charge at HB4-Boys' },
-  { name: 'Scale', when: 'Month 2', what: 'Extend the charge to all blocks' },
-  { name: 'Pool', when: 'Month 3', what: '10 PM – 2 AM flexible rider pool' },
+  { name: 'Notify', what: 'Add the two new notifications' },
+  { name: 'Pilot', what: 'Late-pickup charge at HB4-Boys' },
+  { name: 'Scale', what: 'Extend the charge to all blocks' },
+  { name: 'Pool', what: '10 PM – 2 AM flexible rider pool' },
 ];
 
 const SolutionCard = ({ x, letter, title, fixes, change, delay, children }) => (
@@ -659,7 +661,7 @@ const SolutionSlide = () => (
           <div key={p.name} style={{ position: 'absolute', left: `${(i / (PHASES.length - 1)) * 100}%`, top: -9, transform: 'translateX(-50%)', width: 300, textAlign: 'center' }}>
             <span style={{ display: 'block', width: 24, height: 24, margin: '0 auto', borderRadius: '50%', background: '#FFFFFF', border: '5px solid var(--navy)' }} />
             <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--navy)', marginTop: 10 }}>
-              {i + 1}. {p.name} <span style={{ fontSize: 17, color: 'var(--blue)' }}>· {p.when}</span>
+              {i + 1}. {p.name}
             </div>
             <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--muted)', marginTop: 4 }}>{p.what}</div>
           </div>
@@ -741,7 +743,7 @@ export const SLIDES = [
   { id: 'problem', Component: ProblemSlide },
   { id: 'process', Component: ProcessSlide, origin: '50% 45%' },
   { id: 'fishbone', Component: FishboneSlide, origin: '85% 58%' }, // zooms into the fish head on the way out
-  { id: 'why-why', Component: WhyWhySlide, steps: 6, origin: '50% 85%' },
+  { id: 'why-why', Component: WhyWhySlide, origin: '50% 85%' },
   { id: 'models', Component: ModelsSlide },
   { id: 'solution', Component: SolutionSlide },
   { id: 'impact', Component: ImpactSlide },

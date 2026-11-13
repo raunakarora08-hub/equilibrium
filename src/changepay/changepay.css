@@ -142,7 +142,7 @@ html, body, #cp-root {
 .ring { animation: ring 1.2s ease-in-out infinite; transform-origin: 50% 50%; }
 @keyframes ring { 0%, 50%, 100% { transform: rotate(0); } 10%, 30% { transform: rotate(-14deg); } 20%, 40% { transform: rotate(14deg); } }
 
-/* ── Slides 4–5: fishbone (as a fish) and the Why-Why build ──────────── */
+/* ── Slides 4–5: fishbone (as a fish) and the auto-revealing Why-Why ─── */
 .draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 1s var(--ease) forwards; animation-delay: var(--d, 0s); }
 @keyframes draw { to { stroke-dashoffset: 0; } }
 .fish-tail { transform-box: view-box; transform-origin: 256px 560px; animation: wag 2.4s ease-in-out infinite; }
@@ -153,10 +153,8 @@ html, body, #cp-root {
 @keyframes smile { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.25); } }
 .fish-bubble { transform-box: fill-box; transform-origin: center; animation: bubble 3.3s ease-out infinite; opacity: 0; }
 @keyframes bubble { 0% { opacity: 0; transform: translate(0, 0) scale(0.5); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(26px, -150px) scale(1.2); } }
-.why-in { animation: whyIn 0.32s var(--ease) both; }
+.why-auto { opacity: 0; animation: whyIn 0.35s var(--ease) both; animation-delay: var(--d, 0s); }
 @keyframes whyIn { from { opacity: 0; transform: translateY(-14px) scale(0.98); } to { opacity: 1; transform: none; } }
-.why-next { animation: whyNext 1s ease-in-out infinite; }
-@keyframes whyNext { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(5px); } }
 .root-glow { animation: rootGlow 2.4s ease-in-out infinite; }
 @keyframes rootGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(28, 156, 107, 0.35); } 50% { box-shadow: 0 0 0 10px rgba(28, 156, 107, 0); } }
 
