@@ -127,6 +127,20 @@ body {
   box-shadow: 0 4px 12px rgba(31, 63, 48, 0.15);
 }
 
+.brand-mark {
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.brand-wordmark {
+  display: block;
+  height: 26px;
+  width: auto;
+  margin-bottom: 3px;
+}
+
 .brand-title {
   font-size: 1.15rem;
   font-weight: 700;
@@ -710,5 +724,135 @@ body {
   }
   .energy-cards-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ---------- Submission success overlay ---------- */
+.success-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(250, 249, 245, 0.72);
+  backdrop-filter: blur(10px) saturate(1.1);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+  animation: success-fade-in 320ms ease-out both;
+  cursor: pointer;
+}
+
+.success-overlay.is-leaving {
+  animation: success-fade-out 450ms ease-in both;
+}
+
+.success-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  animation: success-pop 520ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.success-check {
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  background: var(--accent-emerald-soft);
+  box-shadow: 0 18px 50px -12px rgba(46, 125, 91, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.success-check svg {
+  width: 112px;
+  height: 112px;
+}
+
+.success-check-ring {
+  fill: none;
+  stroke: var(--accent-emerald);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 302;
+  stroke-dashoffset: 302;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  animation: success-draw 650ms 150ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+.success-check-mark {
+  fill: none;
+  stroke: var(--accent-emerald);
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 60;
+  stroke-dashoffset: 60;
+  animation: success-draw 380ms 700ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+/* Both messages occupy the same spot and crossfade */
+.success-text {
+  display: grid;
+  text-align: center;
+  min-height: 2.4em;
+}
+
+.success-text > span {
+  grid-area: 1 / 1;
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--brand-forest);
+}
+
+.success-text .msg-submitted {
+  animation: success-rise-in 450ms 900ms ease-out both;
+}
+
+.success-text .msg-niceday {
+  opacity: 0;
+}
+
+.success-text.show-niceday .msg-submitted {
+  animation: success-rise-out 380ms ease-in both;
+}
+
+.success-text.show-niceday .msg-niceday {
+  animation: success-rise-in 480ms 180ms ease-out both;
+}
+
+@keyframes success-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes success-fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes success-pop {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes success-draw { to { stroke-dashoffset: 0; } }
+@keyframes success-rise-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes success-rise-out {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-12px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .success-overlay,
+  .success-overlay.is-leaving,
+  .success-stack,
+  .success-text > span,
+  .success-text.show-niceday > span {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+  }
+  .success-check-ring,
+  .success-check-mark {
+    animation: none;
+    stroke-dashoffset: 0;
   }
 }

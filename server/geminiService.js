@@ -1,63 +1,124 @@
 // server/geminiService.js
-// Handles AI Anonymity & Writing Neutralization, Sentiment Scoring, and Semantic Clustering via Gemini 2.5 Flash
+// Handles AI Anonymity & Writing Neutralization, Sentiment Scoring, and Semantic Clustering via Gemini
 
-function getGeminiApiKey() {
-  const envKey = (process.env.GEMINI_API_KEY || '').replace(/^["']|["']$/g, '').trim();
-  if (envKey && envKey.length > 10) {
-    return envKey;
-  }
-  // Safe runtime fallback if environment variable was not passed or deployment not refreshed
-  return Buffer.from('QVEuQWI4Uk42SThrM1kxQzZpUzZKSklURFVTUU5vU01yX21Bc3JIOGZvX1Q3eVptNWdWdWc=', 'base64').toString('utf-8');
+export function getGeminiApiKey() {
+  return (process.env.GEMINI_API_KEY || '').replace(/^["']|["']$/g, '').trim();
 }
 
-async function callGemini(prompt, systemInstruction = '', maxTokens = 1000) {
+// Gemini 2.5 disables thinking via thinkingBudget; Gemini 3.x rejects thinkingBudget: 0
+// and uses thinkingLevel instead.
+const MODEL_CONFIGS = {
+  'gemini-2.5-flash': { thinkingConfig: { thinkingBudget: 0 } },
+  'gemini-3.1-flash-lite': { thinkingConfig: { thinkingLevel: 'minimal' } },
+  'gemini-3-flash-preview': { thinkingConfig: { thinkingLevel: 'minimal' } },
+  'gemini-3.5-flash': { thinkingConfig: { thinkingLevel: 'minimal' } },
+  'gemini-3.5-flash-lite': { thinkingConfig: { thinkingLevel: 'minimal' } }
+};
+
+// Model order per workload. 'fast' is for short, latency-sensitive calls on the
+// submission path (neutralize + scoring), where the lite model answers in ~1s.
+// 'quality' is for long-form output (HR chat, clustering).
+const TIERS = {
+  fast: {
+    models: ['gemini-3.1-flash-lite', 'gemini-2.5-flash', 'gemini-3-flash-preview', 'gemini-3.5-flash', 'gemini-3.5-flash-lite'],
+    attemptTimeoutMs: 5000
+  },
+  quality: {
+    models: ['gemini-2.5-flash', 'gemini-3-flash-preview', 'gemini-3.5-flash', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'],
+    attemptTimeoutMs: 25000
+  }
+};
+// Keep the whole call inside Vercel's 60s function limit (vercel.json maxDuration)
+const TOTAL_BUDGET_MS = 50000;
+const MIN_ATTEMPT_MS = 3000;
+// A model that returned 429 (quota) or 503 (overloaded) is skipped by every request
+// on this instance until its cooldown passes, instead of being retried each time.
+const QUOTA_COOLDOWN_MS = 60000;
+const OVERLOAD_COOLDOWN_MS = 15000;
+const modelCooldownUntil = new Map();
+
+function parseRetryDelayMs(errTxt) {
+  const match = errTxt.match(/"retryDelay":\s*"(\d+(?:\.\d+)?)s"/);
+  return match ? Math.ceil(parseFloat(match[1]) * 1000) : null;
+}
+
+async function callGemini(prompt, systemInstruction = '', maxTokens = 1000, { json = false, tier = 'quality' } = {}) {
   const apiKey = getGeminiApiKey();
   if (!apiKey) {
-    throw new Error('GEMINI_API_KEY is missing.');
+    throw new Error('GEMINI_API_KEY is not set on the server.');
   }
 
-  // Active models supported by the API key
-  const models = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.5-flash-lite', 'gemini-2.5-pro'];
-  const body = {
-    contents: [
-      {
-        parts: [{ text: prompt }]
-      }
-    ],
-    generationConfig: {
-      maxOutputTokens: maxTokens,
-      thinkingConfig: { thinkingBudget: 0 }
-    }
-  };
-
-  if (systemInstruction) {
-    body.systemInstruction = {
-      parts: [{ text: systemInstruction }]
-    };
-  }
-
+  const { models, attemptTimeoutMs } = TIERS[tier];
+  const deadline = Date.now() + TOTAL_BUDGET_MS;
+  const now = Date.now();
+  const available = models.filter(name => (modelCooldownUntil.get(name) || 0) <= now);
+  // If every model is cooling down, try them all anyway rather than failing outright
+  const candidates = available.length > 0 ? available : models;
   let lastError = null;
-  for (const model of models) {
+
+  for (const modelName of candidates) {
+    const remaining = deadline - Date.now();
+    if (remaining < MIN_ATTEMPT_MS) break;
+
+    const body = {
+      contents: [
+        {
+          parts: [{ text: prompt }]
+        }
+      ],
+      generationConfig: {
+        maxOutputTokens: maxTokens,
+        thinkingConfig: MODEL_CONFIGS[modelName].thinkingConfig,
+        ...(json && { responseMimeType: 'application/json' })
+      }
+    };
+
+    if (systemInstruction) {
+      body.systemInstruction = {
+        parts: [{ text: systemInstruction }]
+      };
+    }
+
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`;
       const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(Math.min(attemptTimeoutMs, remaining))
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.candidates && data.candidates.length > 0) {
-          return data.candidates[0].content.parts[0].text;
-        }
-      } else {
+      if (!response.ok) {
         const errTxt = await response.text();
-        console.warn(`[Gemini API] ${model} returned ${response.status}:`, errTxt.slice(0, 150));
-        lastError = new Error(`Model ${model} returned ${response.status}: ${errTxt}`);
+        console.warn(`[Gemini API] ${modelName} returned ${response.status}:`, errTxt.slice(0, 150));
+        lastError = new Error(`Model ${modelName} returned ${response.status}`);
+        if (response.status === 429) {
+          const cooldown = Math.min(parseRetryDelayMs(errTxt) || QUOTA_COOLDOWN_MS, 10 * 60000);
+          modelCooldownUntil.set(modelName, Date.now() + cooldown);
+        } else if (response.status === 503) {
+          modelCooldownUntil.set(modelName, Date.now() + OVERLOAD_COOLDOWN_MS);
+        }
+        continue;
       }
+
+      const data = await response.json();
+      const candidate = data.candidates?.[0];
+      const text = (candidate?.content?.parts || [])
+        .filter(p => p.text && !p.thought)
+        .map(p => p.text)
+        .join('');
+
+      if (!text) {
+        lastError = new Error(`Model ${modelName} returned no text (finishReason: ${candidate?.finishReason || 'unknown'})`);
+        console.warn(`[Gemini API] ${lastError.message}`);
+        continue;
+      }
+      if (candidate.finishReason === 'MAX_TOKENS') {
+        console.warn(`[Gemini API] ${modelName} hit maxOutputTokens (${maxTokens}); output may be truncated`);
+      }
+      return text;
     } catch (err) {
-      console.warn(`[Gemini API] ${model} network error:`, err.message);
+      console.warn(`[Gemini API] ${modelName} request failed:`, err.message);
       lastError = err;
     }
   }
@@ -65,12 +126,27 @@ async function callGemini(prompt, systemInstruction = '', maxTokens = 1000) {
   throw lastError || new Error('All Gemini models failed.');
 }
 
+function parseJsonResponse(rawResult) {
+  const cleaned = rawResult.replace(/```json/g, '').replace(/```/g, '').trim();
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    // Tolerate stray prose around the JSON object
+    const start = cleaned.indexOf('{');
+    const end = cleaned.lastIndexOf('}');
+    if (start !== -1 && end > start) return JSON.parse(cleaned.slice(start, end + 1));
+    throw new Error('Gemini returned invalid JSON');
+  }
+}
+
 /**
  * Strips PII and stylometrically neutralizes raw employee input.
  * Grounded in Amy Edmondson's Psychological Safety: ensures no employee can be
  * identified by their unique writing style, colloquialisms, syntax quirks, or names.
+ * Also scores the affective metrics in the same call, so a submission needs only
+ * one Gemini round trip. `metrics` is omitted when the heuristic fallback is used.
  */
-export async function neutralizeFeedback(rawText, context = 'daily_summary') {
+export async function neutralizeFeedback(rawText, context = 'daily_summary', energyLevel = 3) {
   if (!rawText || rawText.trim().length === 0) {
     return {
       neutralizedText: '',
@@ -88,15 +164,23 @@ CRITICAL RULES:
 2. SUBMITTER IDENTITY: ONLY redact and protect any information that would identify the SUBMITTER themselves (e.g., if the submitter gives their own name, personal contact information, or unique personal identifiers).
 3. STYLOMETRIC NEUTRALIZATION: Eradicate distinctive personal quirks, excessive punctuation (e.g. '!!!', '...'), hyper-specific colloquialisms, emotional venting habits, and distinctive capitalization. Convert into clear, objective, professional language.
 4. PRESERVE FACTUAL INTEGRITY: Keep all factual events, timelines, names of people discussed, operational bottlenecks, and achievements completely intact.
-5. Output strict JSON only in this format:
+5. METRICS: Score morale and cognitive strain from the content and the employee's energy rating.
+6. Output strict JSON only in this format:
 {
   "neutralizedText": "The sanitized, professionally phrased text here.",
   "redactedItems": ["Protected submitter identifying markers", "Standardized informal phrasing"],
   "stylometryChanges": "Brief summary of tone & stylistic adjustments made",
-  "privacyRiskAssessment": "Safe"
+  "privacyRiskAssessment": "Safe",
+  "metrics": {
+    "sentimentScore": <number between -1.0 (very negative) and 1.0 (very positive)>,
+    "cognitiveStrain": <integer between 0 (no strain) and 100 (severe burnout risk)>,
+    "affectiveValence": "Positive" | "Neutral" | "Frustrated" | "Fatigued" | "Anxious" | "Energized",
+    "primaryConcern": "<short 2-4 word theme, e.g. Tooling Instability, Meeting Fatigue, Clear Progress>"
+  }
 }`;
 
   const prompt = `Input Type: ${context}
+Employee Energy Rating: ${energyLevel}/5 (1=Extremely Drained, 5=Highly Energized)
 Raw Employee Input:
 """
 ${rawText}
@@ -105,9 +189,8 @@ ${rawText}
 Please process and return the JSON object:`;
 
   try {
-    const rawResult = await callGemini(prompt, systemInstruction, 600);
-    const cleaned = rawResult.replace(/```json/g, '').replace(/```/g, '').trim();
-    return JSON.parse(cleaned);
+    const rawResult = await callGemini(prompt, systemInstruction, 1500, { json: true, tier: 'fast' });
+    return parseJsonResponse(rawResult);
   } catch (err) {
     console.error('Error in neutralizeFeedback via Gemini:', err.message);
     // Intelligent fallback heuristic
@@ -153,9 +236,8 @@ Respond with strict JSON only:
 }`;
 
   try {
-    const rawResult = await callGemini(prompt, '', 300);
-    const cleaned = rawResult.replace(/```json/g, '').replace(/```/g, '').trim();
-    return JSON.parse(cleaned);
+    const rawResult = await callGemini(prompt, '', 400, { json: true, tier: 'fast' });
+    return parseJsonResponse(rawResult);
   } catch (err) {
     console.error('Error in analyzeAffectiveMetrics:', err.message);
     const strain = energyLevel <= 2 ? 75 : energyLevel === 3 ? 45 : 20;
@@ -224,9 +306,12 @@ Respond with strict JSON in this exact format:
 }`;
 
   try {
-    const rawResult = await callGemini(prompt, '', 300);
-    const cleaned = rawResult.replace(/```json/g, '').replace(/```/g, '').trim();
-    return JSON.parse(cleaned);
+    const rawResult = await callGemini(prompt, '', 4000, { json: true });
+    const parsed = parseJsonResponse(rawResult);
+    if (!Array.isArray(parsed.weeklyHurdles) || !Array.isArray(parsed.monthlySystemicChallenges)) {
+      throw new Error('Cluster response is missing weeklyHurdles/monthlySystemicChallenges');
+    }
+    return parsed;
   } catch (err) {
     console.error('Error clustering with Gemini:', err.message);
     // Return structured default clusters if API fails
@@ -245,7 +330,7 @@ export async function discussProblemsWithAI(userQuestion, submissions = [], clus
     strain: s.cognitiveStrain
   }));
 
-  const systemInstruction = `You are the Strategic HR People & Operations Advisor for Equilibrium.
+  const systemInstruction = `You are the Strategic HR People & Operations Advisor for WellNest.
 Your role is to help the HR Lead (Raunak) analyze, discuss, and strategize solutions for employee feedback, interpersonal frictions, bottlenecks, and team health.
 
 CONTEXT (Recent Employee Feedback & Submissions):
@@ -280,7 +365,7 @@ GUIDELINES:
   const prompt = `${conversationContext}HR LEAD QUESTION: ${userQuestion}\n\nProvide strategic advice and resolution ideas:`;
 
   try {
-    const rawResult = await callGemini(prompt, systemInstruction, 1000);
+    const rawResult = await callGemini(prompt, systemInstruction, 2000);
     let reply = rawResult;
     let actionProposal = null;
 
@@ -299,7 +384,7 @@ GUIDELINES:
   } catch (err) {
     console.error('Error in discussProblemsWithAI:', err.message);
     return {
-      reply: `⚠️ AI Communication Notice: Unable to reach Gemini models (${err.message}).\n\nPlease ensure your GEMINI_API_KEY is configured in Vercel and your deployment is refreshed.`,
+      reply: `⚠️ AI Communication Notice: The Gemini AI service is overloaded or unreachable right now (${err.message}). Please try again in a minute.`,
       actionProposal: null
     };
   }

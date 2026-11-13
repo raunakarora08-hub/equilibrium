@@ -25,3 +25,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+.vercel
+.env*
+
+# Source materials for videos/decks (reference clips, voiceover, draft PPTX) — not part of the site
+assets/

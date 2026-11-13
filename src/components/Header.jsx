@@ -1,6 +1,6 @@
 // src/components/Header.jsx
 import React from 'react';
-import { ShieldCheck, UserCheck, CheckCircle2, Lock, LogOut, Briefcase } from 'lucide-react';
+import { UserCheck, CheckCircle2, Lock, LogOut, Briefcase } from 'lucide-react';
 
 export default function Header({ activeTab, setActiveTab, hrUser, onLogout }) {
   return (
@@ -8,13 +8,9 @@ export default function Header({ activeTab, setActiveTab, hrUser, onLogout }) {
       <div className="header-inner">
         {/* Brand */}
         <div className="brand-section">
-          <div className="brand-icon">
-            <ShieldCheck size={24} strokeWidth={2.2} />
-          </div>
+          <img src="/brand/wellnest-bird.svg" alt="" className="brand-mark" />
           <div>
-            <div className="brand-title">
-              Equilibrium
-            </div>
+            <img src="/brand/wellnest-wordmark.svg" alt="WellNest" className="brand-wordmark" />
             <div className="brand-subtitle">
               Anonymous Workplace Wellness Platform
             </div>

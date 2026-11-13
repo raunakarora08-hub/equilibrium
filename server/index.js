@@ -6,7 +6,8 @@ import {
   neutralizeFeedback,
   analyzeAffectiveMetrics,
   generateSemanticClusters,
-  discussProblemsWithAI
+  discussProblemsWithAI,
+  getGeminiApiKey
 } from './geminiService.js';
 import {
   getAllSubmissions,
@@ -18,16 +19,22 @@ import {
   addAction,
   updateAction
 } from './dataStore.js';
-import { initializeDatabase, ensureDbInitialized, isPgConnected } from './db.js';
+import { ensureDbInitialized, isPgConnected, isPgConfigured } from './db.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Eager initialization if connection string exists
-initializeDatabase().catch(err => console.error('DB eager init error:', err.message));
+ensureDbInitialized().catch(err => console.error('DB eager init error:', err.message));
 
 app.use(cors());
 app.use(express.json());
+
+// API data must never be served from a browser or CDN cache, so new submissions show up immediately
+app.use((req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
 
 // Zero-knowledge header stripping middleware
 app.use((req, res, next) => {
@@ -49,13 +56,13 @@ app.use(async (req, res, next) => {
 
 // Health check with diagnostics
 app.get(['/api/health', '/health'], (req, res) => {
-  const hasEnvKey = !!(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim().length > 10);
   res.json({
     status: 'online',
     platform: 'Anonymous AI Workplace Wellness & Climate Analytics',
-    geminiConfigured: true,
-    geminiSource: hasEnvKey ? 'environment_variable' : 'secure_fallback',
-    postgresConfigured: isPgConnected()
+    geminiConfigured: getGeminiApiKey().length > 0,
+    postgresConfigured: isPgConfigured(),
+    postgresConnected: isPgConnected(),
+    storage: isPgConfigured() ? 'postgresql' : 'local_json'
   });
 });
 
@@ -69,12 +76,12 @@ app.get(['/api/health', '/health'], (req, res) => {
  */
 app.post(['/api/neutralize', '/neutralize'], async (req, res) => {
   try {
-    const { rawText, context } = req.body;
+    const { rawText, context, energyLevel } = req.body;
     if (!rawText || !rawText.trim()) {
       return res.status(400).json({ error: 'Text content is required' });
     }
 
-    const result = await neutralizeFeedback(rawText, context);
+    const result = await neutralizeFeedback(rawText, context, energyLevel || 3);
     res.json(result);
   } catch (err) {
     console.error('Error during neutralization:', err);
@@ -92,8 +99,11 @@ app.post(['/api/submit', '/submit'], async (req, res) => {
     const payload = req.body;
     const textToAnalyze = payload.neutralizedContent || payload.neutralizedText || payload.blockers || payload.achievements || '';
 
-    // Run Affective Events Theory analysis
-    const metrics = await analyzeAffectiveMetrics(textToAnalyze, payload.energyLevel || 3);
+    // Run Affective Events Theory analysis, unless the neutralize step already scored this text
+    const provided = payload.metrics;
+    const metrics = provided && Number.isFinite(Number(provided.cognitiveStrain)) && Number.isFinite(Number(provided.sentimentScore))
+      ? provided
+      : await analyzeAffectiveMetrics(textToAnalyze, payload.energyLevel || 3);
 
     const saved = await addSubmission({
       ...payload,
@@ -174,7 +184,8 @@ app.get(['/api/submissions', '/submissions'], async (req, res) => {
     }));
     res.json(sanitized);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to retrieve sanitized submissions' });
+    console.error('Error retrieving submissions:', err);
+    res.status(500).json({ error: 'Failed to retrieve sanitized submissions: ' + err.message });
   }
 });
 
@@ -186,7 +197,8 @@ app.get(['/api/clusters', '/clusters'], async (req, res) => {
     const clusters = await getClusters();
     res.json(clusters);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to retrieve clusters' });
+    console.error('Error retrieving clusters:', err);
+    res.status(500).json({ error: 'Failed to retrieve clusters: ' + err.message });
   }
 });
 
@@ -199,7 +211,7 @@ app.post(['/api/clusters/regenerate', '/clusters/regenerate'], async (req, res) 
       res.json({ success: true, clusters: newClusters });
     } else {
       const current = await getClusters();
-      res.json({ success: false, clusters: current, message: 'Retained previous clusters' });
+      res.json({ success: false, clusters: current, message: 'AI clustering is temporarily unavailable; showing the previous clusters.' });
     }
   } catch (err) {
     console.error('Error regenerating clusters:', err);
@@ -215,7 +227,8 @@ app.get(['/api/actions', '/actions'], async (req, res) => {
     const actions = await getAllActions();
     res.json(actions);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to retrieve actions' });
+    console.error('Error retrieving actions:', err);
+    res.status(500).json({ error: 'Failed to retrieve actions: ' + err.message });
   }
 });
 
@@ -224,7 +237,8 @@ app.post(['/api/actions', '/actions'], async (req, res) => {
     const action = await addAction(req.body);
     res.json({ success: true, action });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to create action' });
+    console.error('Error creating action:', err);
+    res.status(500).json({ error: 'Failed to create action: ' + err.message });
   }
 });
 
@@ -234,7 +248,8 @@ app.patch(['/api/actions/:id', '/actions/:id'], async (req, res) => {
     if (!updated) return res.status(404).json({ error: 'Action not found' });
     res.json({ success: true, action: updated });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to update action' });
+    console.error('Error updating action:', err);
+    res.status(500).json({ error: 'Failed to update action: ' + err.message });
   }
 });
 
@@ -259,7 +274,7 @@ app.post(['/api/hr-discuss', '/hr-discuss'], async (req, res) => {
 
 if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
   app.listen(PORT, () => {
-    console.log(`🌿 Equilibrium Wellness & Climate Server running on http://localhost:${PORT}`);
+    console.log(`🌿 WellNest Wellness & Climate Server running on http://localhost:${PORT}`);
   });
 }
 

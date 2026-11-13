@@ -4,14 +4,14 @@ import path from 'path';
 import os from 'os';
 import { fileURLToPath } from 'url';
 import { initialSubmissions, initialActions, defaultClusters } from './seedData.js';
-import { pool, isPgConnected } from './db.js';
+import { pool, ensureDbInitialized, isPgConfigured } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Safe DATA_DIR: Use /tmp on Vercel to respect read-only serverless filesystem
-const DATA_DIR = process.env.VERCEL 
-  ? path.join(os.tmpdir(), 'equilibrium-data') 
+const DATA_DIR = process.env.VERCEL
+  ? path.join(os.tmpdir(), 'equilibrium-data')
   : path.join(__dirname, 'data');
 
 try {
@@ -51,37 +51,77 @@ function writeJsonFile(filePath, data) {
   }
 }
 
-// In-memory cache fallback
+// Local JSON persistence, used only when no PostgreSQL connection string is configured
 let submissions = readJsonFile(SUBMISSIONS_FILE, initialSubmissions);
 let actions = readJsonFile(ACTIONS_FILE, initialActions);
 let clusters = readJsonFile(CLUSTERS_FILE, defaultClusters);
 
+/**
+ * Returns true when PostgreSQL should be used. If a database is configured but
+ * unreachable, throws instead of silently falling back to ephemeral storage,
+ * so callers report the failure rather than "saving" data that is then lost.
+ */
+async function shouldUsePostgres() {
+  if (!isPgConfigured()) return false;
+  const ready = await ensureDbInitialized();
+  if (!ready) {
+    throw new Error('Database is configured but currently unreachable. Please try again.');
+  }
+  return true;
+}
+
+function toInt(value, fallback) {
+  const n = Math.round(Number(value));
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function toIso(value) {
+  return value instanceof Date ? value.toISOString() : value;
+}
+
+function rowToSubmission(r) {
+  return {
+    id: r.id,
+    type: r.type,
+    timestamp: toIso(r.timestamp),
+    department: r.department,
+    energyLevel: r.energy_level,
+    rhythmTags: r.rhythm_tags || [],
+    productivityScore: r.productivity_score,
+    achievements: r.achievements,
+    blockers: r.blockers,
+    other: r.other_notes,
+    neutralizedContent: r.neutralized_content,
+    redactedItems: r.redacted_items || [],
+    sentimentScore: parseFloat(r.sentiment_score || 0),
+    cognitiveStrain: r.cognitive_strain,
+    affectiveValence: r.affective_valence,
+    category: r.category,
+    severity: r.severity
+  };
+}
+
+function rowToAction(r) {
+  return {
+    id: r.id,
+    clusterTitle: r.cluster_title,
+    actionDescription: r.action_description,
+    assignedTo: r.assigned_to,
+    status: r.status,
+    publicNote: r.public_note,
+    createdAt: toIso(r.created_at),
+    updatedAt: toIso(r.updated_at)
+  };
+}
+
 export async function getAllSubmissions() {
-  if (isPgConnected() && pool) {
-    try {
-      const res = await pool.query('SELECT * FROM submissions ORDER BY timestamp DESC');
-      if (res.rows && res.rows.length > 0) {
-        return res.rows.map(r => ({
-          id: r.id,
-          type: r.type,
-          timestamp: r.timestamp instanceof Date ? r.timestamp.toISOString() : r.timestamp,
-          department: r.department,
-          energyLevel: r.energy_level,
-          productivityScore: r.productivity_score,
-          achievements: r.achievements,
-          blockers: r.blockers,
-          other: r.other_notes,
-          neutralizedContent: r.neutralized_content,
-          sentimentScore: parseFloat(r.sentiment_score || 0),
-          cognitiveStrain: r.cognitive_strain,
-          affectiveValence: r.affective_valence,
-          category: r.category,
-          severity: r.severity
-        }));
-      }
-    } catch (err) {
-      console.error('Error fetching submissions from PostgreSQL, falling back to cache:', err.message);
-    }
+  if (await shouldUsePostgres()) {
+    const res = await pool.query('SELECT * FROM submissions ORDER BY timestamp DESC');
+    return res.rows.map(rowToSubmission);
   }
   return submissions;
 }
@@ -90,7 +130,7 @@ export async function getAllSubmissions() {
  * Adds an anonymous submission.
  * Enforces Zero-Knowledge principles:
  * - No user-agent, IP, or user IDs are accepted or stored.
- * - Random timing jitter (±10 to 25 mins) is added to the timestamp to thwart correlation attacks.
+ * - Random timing jitter (±15 mins) is added to the timestamp to thwart correlation attacks.
  */
 export async function addSubmission(submission) {
   // Apply timestamp jitter
@@ -98,171 +138,143 @@ export async function addSubmission(submission) {
   const jitterMinutes = Math.floor(Math.random() * 30) - 15; // -15 to +15 mins
   now.setMinutes(now.getMinutes() + jitterMinutes);
 
-  const energy = Number(submission.energyLevel) || 3;
-  const strain = submission.cognitiveStrain !== undefined ? submission.cognitiveStrain : 45;
+  // Gemini may return decimals or strings; coerce to what the INT/NUMERIC columns accept
+  const energy = clamp(toInt(submission.energyLevel, 3), 1, 5);
+  const strain = clamp(toInt(submission.cognitiveStrain, 45), 0, 100);
+  const sentiment = clamp(Number(submission.sentimentScore) || 0, -1, 1);
   const hasAchievements = (submission.achievements && submission.achievements.trim().length > 5) ? 15 : 0;
   const hasBlockers = (submission.blockers && submission.blockers.trim().length > 5) ? 10 : 0;
   const productivityScore = Math.max(20, Math.min(95, Math.round((energy * 16) + hasAchievements - (strain * 0.25) - hasBlockers + 10)));
 
   const cleanEntry = {
-    id: `sub-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-    type: submission.type || 'daily_summary',
+    id: `sub-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    type: String(submission.type || 'daily_summary').slice(0, 50),
     timestamp: now.toISOString(),
-    department: submission.department || 'General',
+    department: String(submission.department || 'General').slice(0, 100),
     energyLevel: energy,
     rhythmTags: Array.isArray(submission.rhythmTags) ? submission.rhythmTags : [],
     achievements: submission.achievements || '',
     blockers: submission.blockers || '',
     other: submission.other || '',
     neutralizedContent: submission.neutralizedContent || submission.neutralizedText || '',
-    redactedItems: submission.redactedItems || [],
-    sentimentScore: submission.sentimentScore !== undefined ? submission.sentimentScore : 0,
+    redactedItems: Array.isArray(submission.redactedItems) ? submission.redactedItems : [],
+    sentimentScore: Math.round(sentiment * 100) / 100,
     cognitiveStrain: strain,
     productivityScore: productivityScore,
-    affectiveValence: submission.affectiveValence || 'Neutral',
-    category: submission.category || 'General',
-    severity: submission.severity || 'normal'
+    affectiveValence: String(submission.affectiveValence || 'Neutral').slice(0, 50),
+    category: String(submission.category || 'General').slice(0, 100),
+    severity: String(submission.severity || 'normal').slice(0, 50)
   };
+
+  if (await shouldUsePostgres()) {
+    await pool.query(`
+      INSERT INTO submissions (
+        id, type, timestamp, department, energy_level, productivity_score,
+        achievements, blockers, other_notes, neutralized_content,
+        sentiment_score, cognitive_strain, affective_valence, category, severity,
+        redacted_items, rhythm_tags
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17);
+    `, [
+      cleanEntry.id, cleanEntry.type, cleanEntry.timestamp, cleanEntry.department,
+      cleanEntry.energyLevel, cleanEntry.productivityScore, cleanEntry.achievements,
+      cleanEntry.blockers, cleanEntry.other, cleanEntry.neutralizedContent,
+      cleanEntry.sentimentScore, cleanEntry.cognitiveStrain, cleanEntry.affectiveValence,
+      cleanEntry.category, cleanEntry.severity,
+      JSON.stringify(cleanEntry.redactedItems), JSON.stringify(cleanEntry.rhythmTags)
+    ]);
+    return cleanEntry;
+  }
 
   submissions.unshift(cleanEntry);
   writeJsonFile(SUBMISSIONS_FILE, submissions);
-
-  // Persist directly to PostgreSQL
-  if (isPgConnected() && pool) {
-    try {
-      await pool.query(`
-        INSERT INTO submissions (
-          id, type, timestamp, department, energy_level, productivity_score,
-          achievements, blockers, other_notes, neutralized_content,
-          sentiment_score, cognitive_strain, affective_valence, category, severity
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-        ON CONFLICT (id) DO NOTHING;
-      `, [
-        cleanEntry.id, cleanEntry.type, cleanEntry.timestamp, cleanEntry.department,
-        cleanEntry.energyLevel, cleanEntry.productivityScore, cleanEntry.achievements,
-        cleanEntry.blockers, cleanEntry.other, cleanEntry.neutralizedContent,
-        cleanEntry.sentimentScore, cleanEntry.cognitiveStrain, cleanEntry.affectiveValence,
-        cleanEntry.category, cleanEntry.severity
-      ]);
-    } catch (err) {
-      console.error('PG insert submission error:', err.message);
-    }
-  }
-
   return cleanEntry;
 }
 
 export async function getAllActions() {
-  if (isPgConnected() && pool) {
-    try {
-      const res = await pool.query('SELECT * FROM actions ORDER BY created_at DESC');
-      if (res.rows && res.rows.length > 0) {
-        return res.rows.map(r => ({
-          id: r.id,
-          clusterTitle: r.cluster_title,
-          actionDescription: r.action_description,
-          assignedTo: r.assigned_to,
-          status: r.status,
-          publicNote: r.public_note,
-          createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at,
-          updatedAt: r.updated_at instanceof Date ? r.updated_at.toISOString() : r.updated_at
-        }));
-      }
-    } catch (err) {
-      console.error('Error fetching actions from PostgreSQL:', err.message);
-    }
+  if (await shouldUsePostgres()) {
+    const res = await pool.query('SELECT * FROM actions ORDER BY created_at DESC');
+    return res.rows.map(rowToAction);
   }
   return actions;
 }
 
 export async function updateAction(id, updateData) {
+  if (await shouldUsePostgres()) {
+    const res = await pool.query(`
+      UPDATE actions
+      SET status = COALESCE($1, status),
+          public_note = COALESCE($2, public_note),
+          assigned_to = COALESCE($3, assigned_to),
+          updated_at = NOW()
+      WHERE id = $4
+      RETURNING *;
+    `, [updateData.status ?? null, updateData.publicNote ?? null, updateData.assignedTo ?? null, id]);
+    return res.rows[0] ? rowToAction(res.rows[0]) : null;
+  }
+
   const index = actions.findIndex(a => a.id === id);
-  if (index !== -1) {
-    actions[index] = {
-      ...actions[index],
-      ...updateData,
-      updatedAt: new Date().toISOString()
-    };
-    writeJsonFile(ACTIONS_FILE, actions);
-  }
-
-  if (isPgConnected() && pool) {
-    try {
-      await pool.query(`
-        UPDATE actions
-        SET status = $1, updated_at = NOW()
-        WHERE id = $2;
-      `, [updateData.status, id]);
-    } catch (err) {
-      console.error('PG update action error:', err.message);
-    }
-  }
-
-  return index !== -1 ? actions[index] : { id, ...updateData };
+  if (index === -1) return null;
+  actions[index] = {
+    ...actions[index],
+    ...updateData,
+    updatedAt: new Date().toISOString()
+  };
+  writeJsonFile(ACTIONS_FILE, actions);
+  return actions[index];
 }
 
 export async function addAction(actionData) {
+  const nowIso = new Date().toISOString();
   const newAction = {
-    id: `act-${Date.now()}`,
+    id: `act-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     targetClusterId: actionData.targetClusterId || 'custom',
-    clusterTitle: actionData.clusterTitle || 'General Workplace Action',
-    status: actionData.status || 'Under Review',
-    assignedTo: actionData.assignedTo || 'People Operations',
+    clusterTitle: String(actionData.clusterTitle || 'General Workplace Action').slice(0, 255),
+    status: String(actionData.status || 'Under Review').slice(0, 50),
+    assignedTo: String(actionData.assignedTo || 'People Operations').slice(0, 150),
     actionDescription: actionData.actionDescription || '',
     publicNote: actionData.publicNote || '',
-    updatedAt: new Date().toISOString()
+    createdAt: nowIso,
+    updatedAt: nowIso
   };
-  actions.unshift(newAction);
-  writeJsonFile(ACTIONS_FILE, actions);
 
-  if (isPgConnected() && pool) {
-    try {
-      await pool.query(`
-        INSERT INTO actions (
-          id, cluster_title, action_description, assigned_to, status, public_note, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
-        ON CONFLICT (id) DO NOTHING;
-      `, [
-        newAction.id, newAction.clusterTitle, newAction.actionDescription,
-        newAction.assignedTo, newAction.status, newAction.publicNote
-      ]);
-    } catch (err) {
-      console.error('PG insert action error:', err.message);
-    }
+  if (await shouldUsePostgres()) {
+    const res = await pool.query(`
+      INSERT INTO actions (
+        id, cluster_title, action_description, assigned_to, status, public_note, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+      RETURNING *;
+    `, [
+      newAction.id, newAction.clusterTitle, newAction.actionDescription,
+      newAction.assignedTo, newAction.status, newAction.publicNote
+    ]);
+    return rowToAction(res.rows[0]);
   }
 
+  actions.unshift(newAction);
+  writeJsonFile(ACTIONS_FILE, actions);
   return newAction;
 }
 
 export async function getClusters() {
-  if (isPgConnected() && pool) {
-    try {
-      const res = await pool.query('SELECT data FROM clusters WHERE id = $1', ['active']);
-      if (res.rows && res.rows[0]) {
-        return res.rows[0].data;
-      }
-    } catch (err) {
-      console.error('Error fetching clusters from PG:', err.message);
-    }
+  if (await shouldUsePostgres()) {
+    const res = await pool.query('SELECT data FROM clusters WHERE id = $1', ['active']);
+    return res.rows[0] ? res.rows[0].data : defaultClusters;
   }
   return clusters;
 }
 
 export async function updateClusters(newClusters) {
+  if (await shouldUsePostgres()) {
+    await pool.query(`
+      INSERT INTO clusters (id, data, updated_at)
+      VALUES ('active', $1, NOW())
+      ON CONFLICT (id) DO UPDATE SET data = $1, updated_at = NOW();
+    `, [JSON.stringify(newClusters)]);
+    return newClusters;
+  }
+
   clusters = newClusters;
   writeJsonFile(CLUSTERS_FILE, clusters);
-
-  if (isPgConnected() && pool) {
-    try {
-      await pool.query(`
-        INSERT INTO clusters (id, data, updated_at)
-        VALUES ('active', $1, NOW())
-        ON CONFLICT (id) DO UPDATE SET data = $1, updated_at = NOW();
-      `, [JSON.stringify(newClusters)]);
-    } catch (err) {
-      console.error('PG update clusters error:', err.message);
-    }
-  }
   return clusters;
 }
 

@@ -1,6 +1,6 @@
-# Equilibrium — Anonymous Workplace Wellness & Climate Analytics Platform
+# WellNest — Anonymous Workplace Wellness & Climate Analytics Platform
 
-Equilibrium is an enterprise-grade platform designed to collect anonymous employee voice data, surface organizational friction and morale trends, and enable leadership to take transparent, actionable interventions.
+WellNest is an enterprise-grade platform designed to collect anonymous employee voice data, surface organizational friction and morale trends, and enable leadership to take transparent, actionable interventions.
 
 ---
 
@@ -53,20 +53,20 @@ Equilibrium is an enterprise-grade platform designed to collect anonymous employ
 
 ## 🗄️ PostgreSQL Setup (Optional)
 
-Equilibrium automatically supports PostgreSQL. If no database URL is provided, it seamlessly uses the local JSON store (`server/data/`).
+WellNest automatically supports PostgreSQL. If no database URL is provided, it seamlessly uses the local JSON store (`server/data/`).
 
 To use PostgreSQL (Neon, Render, Railway, Vercel Postgres, or local):
 1. Set the environment variable:
    ```bash
    DATABASE_URL=postgres://username:password@host:5432/database
    ```
-2. On startup, Equilibrium automatically creates the tables (`submissions`, `actions`, `clusters`) and seeds the 20 realistic workplace submissions.
+2. On startup, WellNest automatically creates the tables (`submissions`, `actions`, `clusters`) and seeds the 20 realistic workplace submissions.
 
 ---
 
 ## ☁️ Deploying on Vercel
 
-Equilibrium is configured out-of-the-box for Vercel Serverless:
+WellNest is configured out-of-the-box for Vercel Serverless:
 - `vercel.json` rewrites `/api/*` to the serverless entrypoint in `api/index.js`.
 - The Vite frontend builds to `/dist` automatically.
 

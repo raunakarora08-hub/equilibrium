@@ -21,7 +21,8 @@ export default function PublicActionBoard() {
     try {
       const res = await fetch('/api/actions');
       const data = await res.json();
-      setActions(data);
+      if (res.ok && Array.isArray(data)) setActions(data);
+      else console.error('Error fetching public actions:', data.error);
     } catch (err) {
       console.error('Error fetching public actions:', err);
     } finally {

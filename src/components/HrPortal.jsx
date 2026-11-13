@@ -260,15 +260,16 @@ export default function HrPortal({ hrUser, onLoginSuccess }) {
     }
   };
 
-  const fetchDashboardData = async (selectedTimeframe = timeframe) => {
+  const fetchDashboardData = async (selectedTimeframe = timeframe, { silent = false } = {}) => {
     if (!hrUser) return;
-    setIsLoading(true);
+    if (!silent) setIsLoading(true);
     try {
+      const noCache = { cache: 'no-store' };
       const [metricsRes, clustersRes, actionsRes, subsRes] = await Promise.all([
-        fetch(`/api/analytics?timeframe=${selectedTimeframe}`),
-        fetch('/api/clusters'),
-        fetch('/api/actions'),
-        fetch('/api/submissions')
+        fetch(`/api/analytics?timeframe=${selectedTimeframe}`, noCache),
+        fetch('/api/clusters', noCache),
+        fetch('/api/actions', noCache),
+        fetch('/api/submissions', noCache)
       ]);
 
       const metricsData = await metricsRes.json();
@@ -276,14 +277,17 @@ export default function HrPortal({ hrUser, onLoginSuccess }) {
       const actionsData = await actionsRes.json();
       const subsData = await subsRes.json();
 
-      setMetrics(metricsData);
-      setClusters(clustersData);
-      setActions(actionsData);
-      setSubmissions(subsData);
+      // Only replace state with successful responses so an API error can't crash the dashboard
+      if (metricsRes.ok) setMetrics(metricsData);
+      if (clustersRes.ok) setClusters(clustersData);
+      if (actionsRes.ok && Array.isArray(actionsData)) setActions(actionsData);
+      if (subsRes.ok && Array.isArray(subsData)) setSubmissions(subsData);
+      const failed = [metricsData, clustersData, actionsData, subsData].find(d => d && d.error);
+      if (failed) console.error('Error loading HR data:', failed.error);
     } catch (err) {
       console.error('Error loading HR data:', err);
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   };
 
@@ -291,6 +295,22 @@ export default function HrPortal({ hrUser, onLoginSuccess }) {
     if (hrUser) {
       fetchDashboardData(timeframe);
     }
+  }, [hrUser, timeframe]);
+
+  // Keep the dashboard and All Submissions list live: poll while visible, refresh on tab focus
+  useEffect(() => {
+    if (!hrUser) return;
+    const refresh = () => {
+      if (document.visibilityState === 'visible') fetchDashboardData(timeframe, { silent: true });
+    };
+    const interval = setInterval(refresh, 10000);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
   }, [hrUser, timeframe]);
 
   const handleTimeframeChange = (newTimeframe) => {
@@ -306,8 +326,10 @@ export default function HrPortal({ hrUser, onLoginSuccess }) {
       const data = await res.json();
       if (data.clusters) {
         setClusters(data.clusters);
-        setClusterNotice('✓ Problem clusters updated via Gemini AI.');
       }
+      setClusterNotice(data.success
+        ? '✓ Problem clusters updated via Gemini AI.'
+        : `Notice: ${data.message || data.error || 'Cluster update failed.'}`);
     } catch (err) {
       console.error('Cluster regeneration error:', err);
       setClusterNotice('Notice: Cluster update encountered a delay.');
@@ -570,7 +592,10 @@ export default function HrPortal({ hrUser, onLoginSuccess }) {
           <button
             type="button"
             className="btn btn-primary"
-            onClick={() => setShowAllSubmissions(true)}
+            onClick={() => {
+              setShowAllSubmissions(true);
+              fetchDashboardData(timeframe, { silent: true });
+            }}
             style={{ fontSize: '0.84rem', padding: '9px 16px', display: 'flex', alignItems: 'center', gap: 8 }}
             id="btn-see-all-submissions"
           >

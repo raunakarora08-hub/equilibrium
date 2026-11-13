@@ -57,7 +57,7 @@ export default function App() {
       }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-            <strong>Equilibrium</strong> · Anonymous Workplace Wellness Platform
+            <strong>WellNest</strong> · Anonymous Workplace Wellness Platform
           </div>
 
           <div style={{ display: 'flex', gap: 16, fontSize: '0.78rem', color: 'var(--brand-sage)' }}>

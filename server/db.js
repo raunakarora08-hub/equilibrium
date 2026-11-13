@@ -16,11 +16,21 @@ const connectionString =
 
 if (connectionString) {
   try {
+    // Strip sslmode from the URL so the explicit ssl option below is the one that applies
+    const url = new URL(connectionString);
+    url.searchParams.delete('sslmode');
+    const isLocal = ['localhost', '127.0.0.1'].includes(url.hostname);
     pool = new Pool({
-      connectionString,
-      ssl: connectionString.includes('localhost') ? false : { rejectUnauthorized: false },
-      max: 10,
-      idleTimeoutMillis: 30000
+      connectionString: url.toString(),
+      ssl: isLocal ? false : { rejectUnauthorized: false },
+      max: 5,
+      idleTimeoutMillis: 10000,
+      // Neon can take a few seconds to wake a suspended compute
+      connectionTimeoutMillis: 15000
+    });
+    // Neon drops idle connections; without this listener the error crashes the process
+    pool.on('error', err => {
+      console.error('PostgreSQL idle client error:', err.message);
     });
     console.log('🔌 PostgreSQL pool initialized');
   } catch (err) {
@@ -60,6 +70,11 @@ export async function initializeDatabase() {
           category VARCHAR(100) DEFAULT 'General',
           severity VARCHAR(50) DEFAULT 'normal'
         );
+      `);
+      await client.query(`
+        ALTER TABLE submissions
+          ADD COLUMN IF NOT EXISTS redacted_items JSONB DEFAULT '[]'::jsonb,
+          ADD COLUMN IF NOT EXISTS rhythm_tags JSONB DEFAULT '[]'::jsonb;
       `);
 
       // 2. Create Actions Table
@@ -149,14 +164,23 @@ export async function initializeDatabase() {
 
 /**
  * Ensures DB is initialized once, caching the promise for serverless functions.
+ * A failed attempt is not cached, so the next request retries instead of the
+ * instance being stuck without a database.
  */
 export async function ensureDbInitialized() {
   if (!pool) return false;
   if (isConnected) return true;
   if (!initPromise) {
-    initPromise = initializeDatabase();
+    initPromise = initializeDatabase().then(ok => {
+      if (!ok) initPromise = null;
+      return ok;
+    });
   }
   return initPromise;
+}
+
+export function isPgConfigured() {
+  return pool !== null;
 }
 
 export function isPgConnected() {

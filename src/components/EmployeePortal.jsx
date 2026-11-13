@@ -7,11 +7,10 @@ import {
   Shield,
   Send,
   AlertCircle,
-  CheckCircle2,
-  Lock,
   Eye,
   RefreshCw
 } from 'lucide-react';
+import SuccessOverlay from './SuccessOverlay';
 
 // Black / monochrome expression faces (No yellow emojis)
 const MOOD_OPTIONS = [
@@ -55,7 +54,7 @@ export default function EmployeePortal({ onSubmissionSuccess }) {
 
   // Submission State
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submittedReceipt, setSubmittedReceipt] = useState(null);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const getRawContent = () => {
     if (streamType === 'daily_summary') {
@@ -67,6 +66,8 @@ export default function EmployeePortal({ onSubmissionSuccess }) {
     }
     return incidentText;
   };
+
+  const currentEnergy = streamType === 'daily_summary' ? energyLevel : 3;
 
   const handlePreviewSubmission = async () => {
     const raw = getRawContent();
@@ -83,13 +84,15 @@ export default function EmployeePortal({ onSubmissionSuccess }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           rawText: raw,
-          context: streamType
+          context: streamType,
+          energyLevel: currentEnergy
         })
       });
 
       if (!response.ok) throw new Error(`Server error ${response.status}`);
       const data = await response.json();
-      setNeutralizedResult(data);
+      // Remember which text was previewed so an edited form never submits a stale preview
+      setNeutralizedResult({ ...data, sourceText: raw });
     } catch (err) {
       console.error('Neutralize error:', err);
       setFormError('Could not process preview. You can still submit directly.');
@@ -108,30 +111,35 @@ export default function EmployeePortal({ onSubmissionSuccess }) {
     setFormError('');
     setIsSubmitting(true);
     try {
-      let finalNeutralized = neutralizedResult?.neutralizedText;
-      let finalRedacted = neutralizedResult?.redactedItems || [];
+      const preview = neutralizedResult?.sourceText === raw ? neutralizedResult : null;
+      let finalNeutralized = preview?.neutralizedText;
+      let finalRedacted = preview?.redactedItems || [];
+      let finalMetrics = preview?.metrics;
 
-      // If user clicks Submit directly without previewing first, neutralize on the fly
+      // If there is no preview of the current text, neutralize on the fly
       if (!finalNeutralized) {
         const neutRes = await fetch('/api/neutralize', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rawText: raw, context: streamType })
+          body: JSON.stringify({ rawText: raw, context: streamType, energyLevel: currentEnergy })
         });
-        const neutData = await neutRes.json();
+        const neutData = neutRes.ok ? await neutRes.json() : {};
         finalNeutralized = neutData.neutralizedText || raw;
         finalRedacted = neutData.redactedItems || [];
+        finalMetrics = neutData.metrics;
       }
 
       const payload = {
         type: streamType,
         department,
-        energyLevel: streamType === 'daily_summary' ? energyLevel : 3,
+        energyLevel: currentEnergy,
         achievements: streamType === 'daily_summary' ? achievements : '',
         blockers: streamType === 'daily_summary' ? blockers : '',
         other: streamType === 'daily_summary' ? otherText : '',
         neutralizedContent: finalNeutralized,
         redactedItems: finalRedacted,
+        // Scores from the neutralize step, so the server can skip a second AI call
+        metrics: finalMetrics,
         category: streamType === 'targeted_incident' ? category : 'Daily Summary',
         severity: streamType === 'targeted_incident' ? severity : 'low'
       };
@@ -142,22 +150,19 @@ export default function EmployeePortal({ onSubmissionSuccess }) {
         body: JSON.stringify(payload)
       });
 
-      const resData = await res.json();
-      if (resData.success) {
-        setSubmittedReceipt({
-          id: resData.submissionId,
-          timestamp: resData.timestamp,
-          affectiveValence: resData.affectiveValence,
-          cognitiveStrain: resData.cognitiveStrain
-        });
-        // Clear inputs
-        setAchievements('');
-        setBlockers('');
-        setOtherText('');
-        setIncidentText('');
-        setNeutralizedResult(null);
-        if (onSubmissionSuccess) onSubmissionSuccess();
+      const resData = await res.json().catch(() => ({}));
+      if (!res.ok || !resData.success) {
+        throw new Error(resData.error || `Server error ${res.status}`);
       }
+
+      setShowSuccess(true);
+      // Clear inputs
+      setAchievements('');
+      setBlockers('');
+      setOtherText('');
+      setIncidentText('');
+      setNeutralizedResult(null);
+      if (onSubmissionSuccess) onSubmissionSuccess();
     } catch (err) {
       console.error('Submit error:', err);
       setFormError('Failed to record submission: ' + err.message);
@@ -169,47 +174,7 @@ export default function EmployeePortal({ onSubmissionSuccess }) {
   return (
     <div style={{ maxWidth: 840, margin: '0 auto' }}>
 
-      {/* Submission Success Dialog */}
-      {submittedReceipt && (
-        <div style={{
-          backgroundColor: '#FFFFFF',
-          border: '2px solid var(--brand-sage)',
-          borderRadius: 'var(--radius-lg)',
-          padding: 24,
-          marginBottom: 24,
-          boxShadow: 'var(--shadow-card)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--brand-forest)', marginBottom: 8 }}>
-            <CheckCircle2 size={24} color="var(--brand-forest)" />
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Submission Received</h3>
-          </div>
-          <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginBottom: 14 }}>
-            Thank you for sharing your voice. Your submission has been securely processed and sent to the HR Action Board.
-          </p>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            backgroundColor: 'var(--bg-subtle)',
-            padding: '6px 14px',
-            borderRadius: 'var(--radius-pill)',
-            fontSize: '0.8rem',
-            color: 'var(--text-muted)',
-            marginBottom: 16
-          }}>
-            Reference ID: <strong style={{ color: 'var(--brand-forest)' }}>{submittedReceipt.id}</strong>
-          </div>
-          <div>
-            <button
-              className="btn btn-secondary"
-              onClick={() => setSubmittedReceipt(null)}
-              style={{ fontSize: '0.82rem', padding: '6px 14px' }}
-            >
-              Submit Another Entry
-            </button>
-          </div>
-        </div>
-      )}
+      {showSuccess && <SuccessOverlay onDone={() => setShowSuccess(false)} />}
 
       {/* Input Form Card */}
       <div className="card">
@@ -445,8 +410,8 @@ export default function EmployeePortal({ onSubmissionSuccess }) {
           </button>
         </div>
 
-        {/* Side-by-Side Preview (Only shown if user clicked Preview Submission) */}
-        {neutralizedResult && (
+        {/* Side-by-Side Preview (Only shown if user clicked Preview Submission and hasn't edited since) */}
+        {neutralizedResult && neutralizedResult.sourceText === getRawContent() && (
           <div className="safeview-container" style={{ marginTop: 24 }}>
             <div className="safeview-header">
               <div className="safeview-badge">
@@ -492,6 +457,20 @@ export default function EmployeePortal({ onSubmissionSuccess }) {
                 </div>
               </div>
             )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18 }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                id="btn-submit-from-preview"
+                style={{ padding: '10px 26px' }}
+              >
+                {isSubmitting ? 'Submitting...' : 'Looks good, Submit'}
+                <Send size={15} />
+              </button>
+            </div>
           </div>
         )}
       </div>
